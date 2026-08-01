@@ -639,7 +639,7 @@ CATEGORIE_ARMI = ["Armi da Mischia", "Pistole", "Mitra", "Fucili d'Assalto", "Fu
 
 personaggi_addormentati = set()  # {uid} — personaggi che stanno dormendo
 
-DATA_FILE = os.environ.get("DATA_FILE", "data.json")
+DATA_FILE = os.environ.get("DATA_FILE", "/app/data/data.json")
 
 _DIZIONARI_CHIAVE_INT = [
     "conti_bancari", "documenti_identita", "patenti_cittadini", "prigione", "inventari",
