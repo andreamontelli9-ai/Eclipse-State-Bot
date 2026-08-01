@@ -1,10 +1,10 @@
 FROM python:3.10-slim
 
-WORKDIR /app
+WORKDIR /bot
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . /app
+COPY . /bot
 
-CMD ["python", "/app/bot.py"]
+CMD ["python", "bot.py"]
