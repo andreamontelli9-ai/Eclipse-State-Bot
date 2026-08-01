@@ -831,7 +831,7 @@ def _ha_ruolo(member, parole_chiave: list) -> bool:
 _KW_STAFF = [
     "official staff", "try staff", "higher staff", "helper",
     "staff manager", "server manager", "whitelister manager",
-    "madison state staff", "developer",
+    "eclipse city rp staff", "developer",
     "owner of madison", "deputy owner", "co owner",
     "addetto colloqui", "addetto forum", "addetto bandi",
     "addetto item", "addetto stipendi", "addetto droghe",
@@ -935,7 +935,7 @@ def _blocca_se_dorme():
     """Decoratore: impedisce l'uso del comando se il personaggio sta dormendo."""
     async def predicate(interaction: discord.Interaction) -> bool:
         if interaction.user.id in personaggi_addormentati:
-            embed = discord.Embed(color=discord.Color.dark_gray())
+            embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
             embed.description = (
                 "😴 | **PERSONAGGIO ADDORMENTATO**\n\n"
                 "➢ Stai dormendo e non puoi usare comandi.\n"
@@ -946,7 +946,7 @@ def _blocca_se_dorme():
         return True
     return app_commands.check(predicate)
 
-async def log_staff(guild: discord.Guild, descrizione: str, colore: discord.Color = discord.Color.blurple()):
+async def log_staff(guild: discord.Guild, descrizione: str, colore: discord.Color = discord.Color.from_rgb(123, 47, 190)):
     if guild is None:
         return
     canale = discord.utils.get(guild.text_channels, name="log-staff")
@@ -958,7 +958,7 @@ async def log_staff(guild: discord.Guild, descrizione: str, colore: discord.Colo
     except discord.Forbidden:
         pass
 
-async def log_azione(guild: discord.Guild, utente: discord.Member, azione: str, dettagli: str = "", colore: discord.Color = discord.Color.blurple(), canale_origine: discord.TextChannel = None):
+async def log_azione(guild: discord.Guild, utente: discord.Member, azione: str, dettagli: str = "", colore: discord.Color = discord.Color.from_rgb(123, 47, 190), canale_origine: discord.TextChannel = None):
     """📋 Log automatico di ogni azione utente nel canale dedicato."""
     if guild is None:
         return
@@ -1063,7 +1063,7 @@ class ViewSondaggioPulsanti(discord.ui.View):
         embed = discord.Embed(
             title="📊 | Sondaggio Rp", 
             description=f"🚀 **Orario Sessione RP Selezionato: {orario}**\n\nPronti a iniziare una nuova avventura roleplay.\n➢ *Votate per partecipare alla sessione delle {orario} grazie!*", 
-            color=discord.Color.from_rgb(46, 204, 113),
+            color=discord.Color.from_rgb(233, 30, 140),
             timestamp=datetime.now()
         )
         embed.set_thumbnail(url=LOGO_SERVER)
@@ -1115,7 +1115,7 @@ class ModalBg1(discord.ui.Modal, title="📋 Background Personaggio"):
     storia = discord.ui.TextInput(
         label="STORIA DEL PERSONAGGIO",
         style=discord.TextStyle.paragraph,
-        placeholder="Min. 5-10 righe. Carattere, infanzia, famiglia, lavoro, obiettivi, perché a Madison.",
+        placeholder="Min. 5-10 righe. Carattere, infanzia, famiglia, lavoro, obiettivi, perché a Eclipse City.",
         required=True,
         min_length=200
     )
@@ -1143,7 +1143,7 @@ class ModalBg1(discord.ui.Modal, title="📋 Background Personaggio"):
             guild = interaction.guild
             canale_esiti = guild.get_channel(CH_ESITI_BACKGROUND) if guild else None
 
-            embed_bg = discord.Embed(color=discord.Color.blurple(), timestamp=datetime.now())
+            embed_bg = discord.Embed(color=discord.Color.from_rgb(123, 47, 190), timestamp=datetime.now())
             embed_bg.set_thumbnail(url=interaction.user.display_avatar.url)
             embed_bg.description = (
                 f"💾 | **NUOVO BACKGROUND INVIATO**\n\n"
@@ -1171,7 +1171,7 @@ class ModalBg1(discord.ui.Modal, title="📋 Background Personaggio"):
                 interaction.guild, interaction.user,
                 "📋 Background inviato",
                 f"PG: {nome_completo} | Età IC: {self.eta_ic.value} | OOC: {self.eta_ooc.value}",
-                discord.Color.gold()
+                discord.Color.from_rgb(255, 200, 0)
             )
         except Exception as e:
             print(f"⚠️ Errore invio background: {e}")
@@ -1229,25 +1229,25 @@ class TicketPanelView(discord.ui.View):
         
         await interaction.response.send_message(f"🎫 Il tuo ticket è stato aperto qui: {channel.mention}", ephemeral=True)
         
-        embed = discord.Embed(title="🎫 | TICKET APERTO", description=f"Benvenuto {interaction.user.mention}!\nUno staffer ti assisterà a breve.\nUsa `/close` per chiudere il ticket quando hai finito.", color=discord.Color.blue())
+        embed = discord.Embed(title="🎫 | TICKET APERTO", description=f"Benvenuto {interaction.user.mention}!\nUno staffer ti assisterà a breve.\nUsa `/close` per chiudere il ticket quando hai finito.", color=discord.Color.from_rgb(123, 47, 190))
         await channel.send(content=interaction.user.mention, embed=embed)
 
         # Log ticket nel canale dedicato
         log_ch = guild.get_channel(1493698945640304711)
         if log_ch:
-            log_embed = discord.Embed(title="🎫 | TICKET CREATO", color=discord.Color.blue(), timestamp=datetime.now())
+            log_embed = discord.Embed(title="🎫 | TICKET CREATO", color=discord.Color.from_rgb(123, 47, 190), timestamp=datetime.now())
             log_embed.add_field(name="Pannello", value=f">>> Ticket {tipo}", inline=False)
             log_embed.add_field(name="Creato da", value=f">>> {interaction.user.mention}", inline=False)
             log_embed.add_field(name="Canale", value=f">>> {channel.mention}", inline=False)
             log_embed.add_field(name="Data", value=f">>> {datetime.now().strftime('%Y-%m-%d')}", inline=False)
-            log_embed.set_author(name="Madison State®", icon_url=LOGO_SERVER)
+            log_embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
             await log_ch.send(embed=log_embed)
 
 @bot.tree.command(name="accetta_background", description="✅ Accetta il background di un utente (Solo Staff)")
 @app_commands.describe(utente="L'utente a cui accettare il background")
 @is_staff_or_direttore()
 async def accetta_background(interaction: discord.Interaction, utente: discord.Member, nota: str = ""):
-    colore = discord.Color.green()
+    colore = discord.Color.from_rgb(233, 30, 140)
     embed = discord.Embed(color=colore, timestamp=datetime.now())
     embed.set_thumbnail(url=LOGO_SERVER)
     desc = (
@@ -1275,7 +1275,7 @@ async def accetta_background(interaction: discord.Interaction, utente: discord.M
         await utente.send(embed=embed)
     except Exception:
         pass
-    await log_staff(interaction.guild, f"✅ {interaction.user.mention} ha accettato il background di {utente.mention}.", discord.Color.green())
+    await log_staff(interaction.guild, f"✅ {interaction.user.mention} ha accettato il background di {utente.mention}.", discord.Color.from_rgb(233, 30, 140))
 
 @bot.tree.command(name="rifiuta_background", description="❌ Rifiuta il background di un utente (Solo Staff)")
 @app_commands.describe(utente="L'utente a cui rifiutare il background", motivo="Motivo del rifiuto")
@@ -1350,7 +1350,7 @@ async def on_member_join(member: discord.Member):
     if canale is None:
         return
 
-    embed = discord.Embed(color=discord.Color.from_rgb(0, 120, 220))
+    embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
     embed.description = (
         f"👋 Benvenuto {member.mention} 😈 , inizia leggendo la "
         f"<#{CH_INFO_GUIDA_WL}> e successivamente compila il "
@@ -1359,7 +1359,7 @@ async def on_member_join(member: discord.Member):
         f"oppure aspettate la comunicazione su <#{CH_STATO_WHITELIST}> ."
     )
     embed.set_author(
-        name=f"🛫 | BENVENUTO <@{member.id}> SU MADISON RP",
+        name=f"🛫 | BENVENUTO <@{member.id}> SU ECLIPSE CITY RP",
         icon_url=member.guild.icon.url if member.guild.icon else None
     )
     embed.set_image(url=BANNER_BENVENUTO)
@@ -1379,14 +1379,14 @@ async def on_member_remove(member: discord.Member):
     if canale is None:
         return
 
-    embed = discord.Embed(color=discord.Color.from_rgb(88, 101, 242))
+    embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
     embed.set_author(
         name=f"👋 ARRIVEDERCI <@{member.id}> 👋",
         icon_url=member.guild.icon.url if member.guild.icon else None
     )
     embed.description = (
         "✈️ • **PARTENZA:**\n\n"
-        f"👋 Ci dispiace {member.mention} vederti andare via da Madison State Full RP.\n"
+        f"👋 Ci dispiace {member.mention} vederti andare via da Eclipse City RP.\n"
         f"➢ 📍 Speriamo che la tua esperienza nel server sia stata positiva.\n"
         f"➢ 📍 Le porte del server saranno sempre aperte per te.\n"
         f"➢ 📍 Se vuoi tornare sarai sempre il benvenuto.\n"
@@ -1448,7 +1448,7 @@ async def annuncio(interaction: discord.Interaction, messaggio: str):
 @is_staff_or_direttore()
 async def rpon(interaction: discord.Interaction):
     await interaction.response.send_message("⌛", ephemeral=True)
-    embed = discord.Embed(color=discord.Color.green())
+    embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
     embed.description = (
         "✅ **RP ON** ✅\n\n"
         "Ti auguriamo un buon Roleplay"
@@ -1525,23 +1525,23 @@ async def regolamento(interaction: discord.Interaction):
         "**41) Toxic PvP** — Vietato avere comportamenti tossici durante il PvP."
     )
 
-    embed1 = discord.Embed(color=discord.Color.gold())
-    embed1.set_author(name="📜 REGOLAMENTO UFFICIALE — MADISON STATE®", icon_url=LOGO_SERVER)
+    embed1 = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
+    embed1.set_author(name="📜 REGOLAMENTO UFFICIALE — ECLIPSE CITY RP®", icon_url=LOGO_SERVER)
     embed1.description = (
         "━━━━━━━━━━━━━━━━━━━━━━━━\n"
         "⚠️ *Leggere attentamente. L'ignoranza del regolamento non giustifica le infrazioni.*\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         + REGOLE_1
     )
-    embed1.set_footer(text="Madison State® — Pagina 1/3")
+    embed1.set_footer(text="Eclipse City RP® — Pagina 1/3")
 
-    embed2 = discord.Embed(color=discord.Color.gold())
+    embed2 = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
     embed2.description = REGOLE_2
-    embed2.set_footer(text="Madison State® — Pagina 2/3")
+    embed2.set_footer(text="Eclipse City RP® — Pagina 2/3")
 
-    embed3 = discord.Embed(color=discord.Color.gold())
+    embed3 = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
     embed3.description = REGOLE_3
-    embed3.set_footer(text="Madison State® — Pagina 3/3 | Grazie per aver letto il regolamento ✅")
+    embed3.set_footer(text="Eclipse City RP® — Pagina 3/3 | Grazie per aver letto il regolamento ✅")
     embed3.set_thumbnail(url=LOGO_SERVER)
 
     await interaction.followup.send(embeds=[embed1, embed2, embed3])
@@ -1549,7 +1549,7 @@ async def regolamento(interaction: discord.Interaction):
 @bot.tree.command(name="convoca", description="📢 Convoca un utente in assistenza (Solo Staff)")
 @is_staff_or_direttore()
 async def convoca(interaction: discord.Interaction, utente: discord.Member, motivo: str):
-    embed = discord.Embed(title="📢 | NUOVA CONVOCAZIONE", color=discord.Color.green(), timestamp=datetime.now())
+    embed = discord.Embed(title="📢 | NUOVA CONVOCAZIONE", color=discord.Color.from_rgb(233, 30, 140), timestamp=datetime.now())
     embed.set_thumbnail(url=LOGO_SERVER)
     embed.description = (
         "**INFO OOC:**\n\n"
@@ -1576,7 +1576,7 @@ async def convoca(interaction: discord.Interaction, utente: discord.Member, moti
 @bot.tree.command(name="ticket", description="🎫 Crea il pannello dei ticket (Solo Staff)")
 @is_staff_or_direttore()
 async def ticket_cmd(interaction: discord.Interaction):
-    embed = discord.Embed(title="🎫 | PANNELLO TICKET:", color=discord.Color.gold())
+    embed = discord.Embed(title="🎫 | PANNELLO TICKET:", color=discord.Color.from_rgb(255, 200, 0))
     embed.set_thumbnail(url=LOGO_SERVER)
     embed.description = (
         "➢ **Benvenuto nella chat Ticket!**\n"
@@ -1612,10 +1612,10 @@ async def apriconto(interaction: discord.Interaction):
         inventari[user_id] = ["📱 Telefono", "🔑 Chiavi di Casa", "💳 Carta Pacific Bank"]
         zaini[user_id] = ["Tramezzino"]
         
-        embed = discord.Embed(title="🏦 PACIFIC BANK — CONTO CORRENTE ATTIVATO 💳", description="Conto attivato con 15.000€ in banca e 100€ in contanti.", color=discord.Color.gold())
-        embed.set_author(name="Madison State®", icon_url=LOGO_SERVER)
+        embed = discord.Embed(title="🏦 PACIFIC BANK — CONTO CORRENTE ATTIVATO 💳", description="Conto attivato con 15.000€ in banca e 100€ in contanti.", color=discord.Color.from_rgb(255, 200, 0))
+        embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
         await interaction.response.send_message(embed=embed)
-        await log_azione(interaction.guild, interaction.user, "🏦 Conto bancario aperto", "Bonus iniziale: 15.000$ banca + 100$ contanti", discord.Color.gold(), canale_origine=interaction.channel)
+        await log_azione(interaction.guild, interaction.user, "🏦 Conto bancario aperto", "Bonus iniziale: 15.000$ banca + 100$ contanti", discord.Color.from_rgb(255, 200, 0), canale_origine=interaction.channel)
 
 @bot.tree.command(name="bal", description="💵 Controlla il saldo e gestisci i tuoi averi")
 async def bal(interaction: discord.Interaction, utente: discord.Member = None):
@@ -1635,7 +1635,7 @@ async def bal(interaction: discord.Interaction, utente: discord.Member = None):
     saldo_contanti = portafogli.get(target.id, 0)
     saldo_totale = saldo_banca + saldo_contanti
 
-    embed = discord.Embed(color=discord.Color.yellow())
+    embed = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
     embed.description = (
         f"🧾 | *Saldo di {target.mention}*\n\n"
         f"💼**Saldo Totale: ➢** {saldo_totale}$\n\n"
@@ -1663,7 +1663,7 @@ async def add_money(interaction: discord.Interaction, utente: discord.Member, im
     if utente.id not in portafogli: portafogli[utente.id] = 0
     portafogli[utente.id] += importo
     _salva_dati()
-    await log_staff(interaction.guild, f"💰 {interaction.user.mention} ha aggiunto **{importo}$** in contanti a {utente.mention}.", discord.Color.green())
+    await log_staff(interaction.guild, f"💰 {interaction.user.mention} ha aggiunto **{importo}$** in contanti a {utente.mention}.", discord.Color.from_rgb(233, 30, 140))
     await interaction.response.send_message(f"✅ Aggiunti **{importo}$** in contanti a {utente.mention}.")
 
 @bot.tree.command(name="remove-money", description="➖ Rimuovi denaro contante o bancario a un utente")
@@ -1676,13 +1676,13 @@ async def remove_money(interaction: discord.Interaction, utente: discord.Member,
         if utente.id not in portafogli: portafogli[utente.id] = 0
         portafogli[utente.id] = max(0, portafogli[utente.id] - importo)
         _salva_dati()
-        await log_staff(interaction.guild, f"➖ {interaction.user.mention} ha rimosso **{importo}$** in contanti a {utente.mention}.", discord.Color.orange())
+        await log_staff(interaction.guild, f"➖ {interaction.user.mention} ha rimosso **{importo}$** in contanti a {utente.mention}.", discord.Color.from_rgb(255, 107, 53))
         await interaction.response.send_message(f"➖ Rimossi **{importo}$** in contanti a {utente.mention}.")
     elif tipo_l in ["banca", "conto"]:
         if utente.id not in conti_bancari: conti_bancari[utente.id] = 0
         conti_bancari[utente.id] = max(0, conti_bancari[utente.id] - importo)
         _salva_dati()
-        await log_staff(interaction.guild, f"➖ {interaction.user.mention} ha rimosso **{importo}$** dal conto bancario di {utente.mention}.", discord.Color.orange())
+        await log_staff(interaction.guild, f"➖ {interaction.user.mention} ha rimosso **{importo}$** dal conto bancario di {utente.mention}.", discord.Color.from_rgb(255, 107, 53))
         await interaction.response.send_message(f"➖ Rimossi **{importo}$** dal conto bancario di {utente.mention}.")
     else:
         return await interaction.response.send_message("❌ Tipo non valido. Usa: *contanti* o *banca*.", ephemeral=True)
@@ -1702,8 +1702,8 @@ async def paga(interaction: discord.Interaction, destinatario: discord.Member, i
 
     # Pagamento al bot — cassa del server
     if destinatario.bot:
-        embed = discord.Embed(color=discord.Color.gold())
-        embed.set_author(name="Madison State®", icon_url=LOGO_SERVER)
+        embed = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
+        embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
         embed.description = (
             f"🏛️ | **PAGAMENTO ALLA CASSA DEL SERVER**\n\n"
             f"👤 **Pagante:** {interaction.user.mention}\n"
@@ -1712,15 +1712,15 @@ async def paga(interaction: discord.Interaction, destinatario: discord.Member, i
             f"✅ Pagamento registrato con successo!"
         )
         await interaction.response.send_message(embed=embed)
-        await log_azione(interaction.guild, interaction.user, "🏛️ Pagamento al Server", f"Importo: **{importo}$** → Cassa Server", discord.Color.gold(), canale_origine=interaction.channel)
+        await log_azione(interaction.guild, interaction.user, "🏛️ Pagamento al Server", f"Importo: **{importo}$** → Cassa Server", discord.Color.from_rgb(255, 200, 0), canale_origine=interaction.channel)
         return
 
     portafogli[destinatario.id] = portafogli.get(destinatario.id, 0) + importo
-    embed = discord.Embed(color=discord.Color.green())
-    embed.set_author(name="Madison State®", icon_url=LOGO_SERVER)
+    embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
+    embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
     embed.description = f"📲 | **PAGAMENTO EFFETTUATO**\n\nHai pagato **{importo}$** a {destinatario.mention}!"
     await interaction.response.send_message(embed=embed)
-    await log_azione(interaction.guild, interaction.user, "💸 Pagamento effettuato", f"Importo: **{importo}$** → {destinatario.mention}", discord.Color.green(), canale_origine=interaction.channel)
+    await log_azione(interaction.guild, interaction.user, "💸 Pagamento effettuato", f"Importo: **{importo}$** → {destinatario.mention}", discord.Color.from_rgb(233, 30, 140), canale_origine=interaction.channel)
 
 
 # ==========================================
@@ -1730,8 +1730,8 @@ async def paga(interaction: discord.Interaction, destinatario: discord.Member, i
 @bot.tree.command(name="pannello-bg", description="📝 Crea il pannello regolamento per inviare i background (Solo Staff)")
 @is_staff_or_direttore()
 async def pannello_bg(interaction: discord.Interaction):
-    embed = discord.Embed(title="📝 | BACKGROUND", color=discord.Color.gold())
-    embed.set_author(name="Madison State®", icon_url=LOGO_SERVER)
+    embed = discord.Embed(title="📝 | BACKGROUND", color=discord.Color.from_rgb(255, 200, 0))
+    embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
     embed.description = (
         "➢ *Gentile utente,*\n\n"
         "*al fine di procedere correttamente con la verifica e la gestione della richiesta, si invita cortesemente a compilare in modo completo e accurato il modulo “Background” riportato di seguito.*\n"
@@ -1759,7 +1759,7 @@ class ModalNotaBg(discord.ui.Modal, title="Nota per il Background"):
         self.canale = canale
 
     async def on_submit(self, interaction: discord.Interaction):
-        colore = discord.Color.gold() if self.is_accettato else discord.Color.red()
+        colore = discord.Color.from_rgb(255, 200, 0) if self.is_accettato else discord.Color.red()
         embed = discord.Embed(color=colore)
         embed.set_thumbnail(url=LOGO_SERVER)
         desc = (
@@ -1834,7 +1834,7 @@ class EsitoBgView(discord.ui.View):
 @app_commands.describe(utente="L'utente a cui dare l'esito")
 @is_staff_or_direttore()
 async def esito_bg(interaction: discord.Interaction, utente: discord.Member):
-    embed = discord.Embed(color=discord.Color.gold())
+    embed = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
     embed.description = (
         f"📝 | **VALUTAZIONE BACKGROUND**\n\n"
         f"**Cittadino ➢**\n{utente.mention}\n\n"
@@ -1894,7 +1894,7 @@ async def wl_passata(interaction: discord.Interaction, utente: discord.Member, e
         except Exception as e:
             errori_ruoli.append(f"Errore assegnazione ruoli: {e}")
 
-    embed = discord.Embed(title="🟩 | WL PASSATA", color=discord.Color.green(), timestamp=datetime.now())
+    embed = discord.Embed(title="🟩 | WL PASSATA", color=discord.Color.from_rgb(233, 30, 140), timestamp=datetime.now())
     embed.set_thumbnail(url=LOGO_SERVER)
     embed.description = (
         f"**Cittadino** ➢ {utente.mention}\n"
@@ -1930,7 +1930,7 @@ async def wl_rifiutata(interaction: discord.Interaction, utente: discord.Member,
 @bot.tree.command(name="wl-on", description="✅ Annuncia che le whitelist sono aperte (Solo Staff)")
 @is_staff_or_direttore()
 async def wl_on(interaction: discord.Interaction):
-    embed = discord.Embed(title="✅ | WHITELIST ON", color=discord.Color.green(), timestamp=datetime.now())
+    embed = discord.Embed(title="✅ | WHITELIST ON", color=discord.Color.from_rgb(233, 30, 140), timestamp=datetime.now())
     embed.set_thumbnail(url=LOGO_SERVER)
     embed.description = (
         "➢ Le whitelist sono attualmente on, lo staff vi raccomanda di "
@@ -2007,10 +2007,10 @@ async def registra(
         await interaction.response.send_message(
             f"✅ Identità registrata! Il tuo numero è `{numero_formattato}`", ephemeral=True
         )
-        await log_azione(interaction.guild, interaction.user, "🪪 Documento registrato", f"Nome IC: {nome} {cognome} | Età: {val_eta} | Tel: {numero_formattato}", discord.Color.gold(), canale_origine=interaction.channel)
+        await log_azione(interaction.guild, interaction.user, "🪪 Documento registrato", f"Nome IC: {nome} {cognome} | Età: {val_eta} | Tel: {numero_formattato}", discord.Color.from_rgb(255, 200, 0), canale_origine=interaction.channel)
 
         dati = documenti_identita[user_id]
-        embed = discord.Embed(color=discord.Color.from_rgb(255, 215, 0))
+        embed = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
         embed.description = (
             f"✅ | **DOCUMENTO REGISTRATO**\n"
             f"➢ Il tuo documento é stato registrato con successo.\n\n"
@@ -2019,7 +2019,7 @@ async def registra(
         embed.set_thumbnail(url=foto.url)
         await interaction.channel.send(embed=embed)
 
-        doc_embed = discord.Embed(color=discord.Color.from_rgb(255, 215, 0))
+        doc_embed = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
         doc_embed.description = (
             f"📄 | **DOCUMENTO D'IDENTITÀ**\n\n"
             f"**Cittadino:**\n➢ {interaction.user.mention}\n\n"
@@ -2045,8 +2045,8 @@ async def documenti(interaction: discord.Interaction):
         return await interaction.response.send_message("❌ Non hai documenti registrati. Usa `/registra`.", ephemeral=True)
     
     dati = documenti_identita[user_id]
-    embed = discord.Embed(title="📄 Documento d'identità", color=discord.Color.from_rgb(255, 215, 0))
-    embed.set_author(name="Madison State®", icon_url=LOGO_SERVER)
+    embed = discord.Embed(title="📄 Documento d'identità", color=discord.Color.from_rgb(255, 200, 0))
+    embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
     embed.add_field(name="Cittadino ➢", value=interaction.user.mention, inline=False)
     embed.add_field(name="ID Univoco ➢", value=f"*{user_id}*", inline=False)
     embed.add_field(name="Telefono ➢", value=f"📞 ` {dati.get('numero_telefono', 'N/A')} `", inline=False)
@@ -2067,8 +2067,8 @@ async def mostra_documenti(interaction: discord.Interaction, utente: discord.Mem
         return await interaction.response.send_message("❌ Non hai documenti registrati.", ephemeral=True)
     
     dati = documenti_identita[user_id]
-    embed = discord.Embed(title="📄 Documento d'identità", color=discord.Color.from_rgb(255, 215, 0))
-    embed.set_author(name="Madison State®", icon_url=LOGO_SERVER)
+    embed = discord.Embed(title="📄 Documento d'identità", color=discord.Color.from_rgb(255, 200, 0))
+    embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
     embed.add_field(name="Cittadino ➢", value=f"<@{user_id}>", inline=False)
     embed.add_field(name="ID Univoco ➢", value=f"*{user_id}*", inline=False)
     embed.add_field(name="Telefono ➢", value=f"📞 ` {dati.get('numero_telefono', 'N/A')} `", inline=False)
@@ -2108,8 +2108,8 @@ async def assumi(interaction: discord.Interaction, utente: discord.Member, lavor
     else:
         documenti_identita[utente.id] = {"nome": utente.display_name, "eta": "18", "cognome": "", "nazionalita":"", "sesso":"", "occhi":"", "capelli":"", "lavoro": etichetta_lavoro, "foto_url": LOGO_SERVER}
 
-    embed = discord.Embed(title="🤝 Assunzione Ufficiale", color=discord.Color.gold())
-    embed.set_author(name="Madison State®", icon_url=LOGO_SERVER)
+    embed = discord.Embed(title="🤝 Assunzione Ufficiale", color=discord.Color.from_rgb(255, 200, 0))
+    embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
     embed.add_field(name="👤 Lavoratore assunto", value=utente.mention, inline=True)
     embed.add_field(name="💼 Lavoro", value=f"`{lavoro_sel.upper()}`", inline=True)
     embed.add_field(name="🎖️ Grado iniziale", value=f"`{grado_iniziale.upper()}`", inline=True)
@@ -2136,8 +2136,8 @@ async def promuovi(interaction: discord.Interaction, utente: discord.Member, lav
     else:
         documenti_identita[utente.id] = {"nome": utente.display_name, "eta": "18", "cognome": "", "nazionalita":"", "sesso":"", "occhi":"", "capelli":"", "lavoro": etichetta_lavoro, "foto_url": LOGO_SERVER}
 
-    embed = discord.Embed(title="🎖️ Promozione / Assegnazione Ufficiale", color=discord.Color.blue())
-    embed.set_author(name="Madison State®", icon_url=LOGO_SERVER)
+    embed = discord.Embed(title="🎖️ Promozione / Assegnazione Ufficiale", color=discord.Color.from_rgb(123, 47, 190))
+    embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
     embed.add_field(name="👤 Membro", value=utente.mention, inline=True)
     embed.add_field(name="💼 Lavoro", value=f"`{lavoro_sel.upper()}`", inline=True)
     embed.add_field(name="🎖️ Grado", value=f"`{grado_sel.upper()}`", inline=True)
@@ -2167,7 +2167,7 @@ async def licenzia(interaction: discord.Interaction, utente: discord.Member):
     if utente.id in documenti_identita: documenti_identita[utente.id]["lavoro"] = "cittadino"
     else: documenti_identita[utente.id] = {"nome": utente.display_name, "eta": "18", "cognome": "", "nazionalita":"", "sesso":"", "occhi":"", "capelli":"", "lavoro": "cittadino", "foto_url": LOGO_SERVER}
     _salva_dati()
-    await log_staff(interaction.guild, f"🫓 {interaction.user.mention} ha licenziato {utente.mention}.", discord.Color.orange())
+    await log_staff(interaction.guild, f"🫓 {interaction.user.mention} ha licenziato {utente.mention}.", discord.Color.from_rgb(255, 107, 53))
     await interaction.response.send_message(f"🫓 {utente.mention} è stato licenziato ed è tornato allo stato di Cittadino.")
 
 
@@ -2220,7 +2220,7 @@ async def lista_proprieta(interaction: discord.Interaction):
         proprietario = interaction.guild.get_member(info['proprietario'])
         nome_prop = proprietario.display_name if proprietario else info.get('nome_completo', "Sconosciuto")
         lista += f"• **{info['via']}, Apt {info['numero']}** - Proprietario: `{nome_prop}`\n"
-    embed = discord.Embed(title="🏢 Registro Case Popolari", description=lista, color=discord.Color.blue())
+    embed = discord.Embed(title="🏢 Registro Case Popolari", description=lista, color=discord.Color.from_rgb(123, 47, 190))
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 class CasaPopolareView(discord.ui.View):
@@ -2269,7 +2269,7 @@ class CasaPopolareView(discord.ui.View):
         inventari[user.id].append(chiave_nome)
         _salva_dati()
         indirizzo_completo = f"{via}, Apt {numero_assegnato}. Garage con 2 posti auto 🚗"
-        embed = discord.Embed(title="🏢 Assegnazione Casa Popolare", description=f"La casa popolare è stata assegnata correttamente!\n\n**Cittadino:** {user.mention} ({nome_completo})\n**Alloggio:** {indirizzo_completo}", color=discord.Color.green())
+        embed = discord.Embed(title="🏢 Assegnazione Casa Popolare", description=f"La casa popolare è stata assegnata correttamente!\n\n**Cittadino:** {user.mention} ({nome_completo})\n**Alloggio:** {indirizzo_completo}", color=discord.Color.from_rgb(233, 30, 140))
         embed.set_footer(text=f"'{chiave_nome}' aggiunto all'inventario del cittadino.")
         await interaction.response.edit_message(content=None, embed=embed, view=None)
 
@@ -2319,7 +2319,7 @@ async def registra_targa(interaction: discord.Interaction, utente: discord.Membe
     cli_cognome = cli_dati.get('cognome', '')
     data_oggi = datetime.now().strftime("%Y-%m-%d")
 
-    embed = discord.Embed(title="🚘 | Registro Veicoli", color=discord.Color.gold())
+    embed = discord.Embed(title="🚘 | Registro Veicoli", color=discord.Color.from_rgb(255, 200, 0))
     embed.set_thumbnail(url=LOGO_SERVER)
     embed.description = (
         f"➢ {interaction.user.mention} Hai registrato l'auto con successo a {utente.mention}!\n\n"
@@ -2337,7 +2337,7 @@ async def registra_targa(interaction: discord.Interaction, utente: discord.Membe
     
     view = FirmaVeicoloView(interaction.user.id, utente.id, targa_up, modello)
     await interaction.response.send_message(content=utente.mention, embed=embed, view=view)
-    await log_azione(interaction.guild, interaction.user, "🚗 Registrazione targa", f"Targa: {targa_up} | Modello: {modello} | Cliente: {utente.mention}", discord.Color.gold(), canale_origine=interaction.channel)
+    await log_azione(interaction.guild, interaction.user, "🚗 Registrazione targa", f"Targa: {targa_up} | Modello: {modello} | Cliente: {utente.mention}", discord.Color.from_rgb(255, 200, 0), canale_origine=interaction.channel)
 
 
 @bot.tree.command(name="registra-pd", description="🪪 Assegna porto d'armi (Solo Staff/Direttore MSPD)")
@@ -2452,8 +2452,8 @@ async def esamina(interaction: discord.Interaction, utente: discord.Member, psn:
     assicurazione = "✅ **Sì** — Coperta dal piano sanitario" if conto is not None else "❌ **No** — Pagamento diretto richiesto"
 
     # ── Embed ──
-    embed = discord.Embed(color=discord.Color.from_rgb(0, 80, 180), timestamp=datetime.now())
-    embed.set_author(name="🛃 Madison State Police Department", icon_url=LOGO_SERVER)
+    embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190), timestamp=datetime.now())
+    embed.set_author(name="🛃 Eclipse City RP Police Department", icon_url=LOGO_SERVER)
     if ha_doc and dati.get("foto_url"):
         embed.set_thumbnail(url=dati["foto_url"])
     else:
@@ -2504,7 +2504,7 @@ async def esamina(interaction: discord.Interaction, utente: discord.Member, psn:
         inline=False
     )
 
-    embed.set_footer(text="ℹ️ Informazioni certificate del Madison State Police Department ❗")
+    embed.set_footer(text="ℹ️ Informazioni certificate del Eclipse City RP Police Department ❗")
 
     await interaction.response.send_message(embed=embed)
 
@@ -2533,7 +2533,7 @@ async def garage_persona(interaction: discord.Interaction, utente: discord.Membe
     
     veicoli = [v for v in tutti_veicoli if v.get("stato", "Libero") != "Sequestrato"]
     
-    embed = discord.Embed(title="🚘 | Garage Personale", color=discord.Color.blue(), timestamp=datetime.now())
+    embed = discord.Embed(title="🚘 | Garage Personale", color=discord.Color.from_rgb(123, 47, 190), timestamp=datetime.now())
     embed.set_thumbnail(url=LOGO_SERVER)
     
     if not veicoli:
@@ -2660,7 +2660,7 @@ async def arresta(
     if utente.id in prigione:
         del prigione[utente.id]
         try:
-            embed_r = discord.Embed(color=discord.Color.green())
+            embed_r = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
             embed_r.description = f"🔓 | **RILASCIO**\n\n➢ {utente.mention} ha scontato la pena ed è stato rilasciato."
             await interaction.channel.send(embed=embed_r)
         except Exception: pass
@@ -2679,8 +2679,8 @@ async def ricercato_toggle(interaction: discord.Interaction, utente: discord.Mem
     if utente.id in ricercati:
         ricercati.remove(utente.id)
         _salva_dati()
-        embed = discord.Embed(color=discord.Color.green(), timestamp=datetime.now())
-        embed.set_author(name="Madison State® — Polizia", icon_url=LOGO_SERVER)
+        embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140), timestamp=datetime.now())
+        embed.set_author(name="Eclipse City RP® — Polizia", icon_url=LOGO_SERVER)
         embed.set_thumbnail(url=utente.display_avatar.url)
         embed.description = (
             "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -2691,12 +2691,12 @@ async def ricercato_toggle(interaction: discord.Interaction, utente: discord.Mem
         )
         embed.set_footer(text=datetime.now().strftime("%d/%m/%Y %H:%M"))
         await interaction.response.send_message(embed=embed, view=RegistratoView())
-        await log_azione(interaction.guild, interaction.user, "✅ Ricercato Rimosso", utente.mention, discord.Color.green(), canale_origine=interaction.channel)
+        await log_azione(interaction.guild, interaction.user, "✅ Ricercato Rimosso", utente.mention, discord.Color.from_rgb(233, 30, 140), canale_origine=interaction.channel)
     else:
         ricercati.add(utente.id)
         _salva_dati()
         embed = discord.Embed(color=discord.Color.red(), timestamp=datetime.now())
-        embed.set_author(name="Madison State® — Polizia", icon_url=LOGO_SERVER)
+        embed.set_author(name="Eclipse City RP® — Polizia", icon_url=LOGO_SERVER)
         embed.set_thumbnail(url=utente.display_avatar.url)
         motivo_str = f"**Motivo →** {motivo}\n" if motivo else ""
         embed.description = (
@@ -2722,7 +2722,7 @@ async def servizio_entra(interaction: discord.Interaction):
         return await interaction.response.send_message("❌ **Conto non trovato:** Per iniziare il turno devi prima aprire un conto in banca con `/apriconto`.", ephemeral=True)
     turni_attivi[user_id] = datetime.now()
     lavoro = documenti_identita.get(user_id, {}).get("lavoro", "Cittadino")
-    embed = discord.Embed(color=discord.Color.from_rgb(46, 204, 113))
+    embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
     embed.description = (
         f"🟢 | **TURNO LAVORATIVO INIZIATO**\n\n"
         f"**CITTADINO ➢**\n{interaction.user.mention}\n\n"
@@ -2731,7 +2731,7 @@ async def servizio_entra(interaction: discord.Interaction):
     )
     embed.set_footer(text=f"{datetime.now().strftime('%d/%m/%Y %H:%M')}")
     await interaction.response.send_message(embed=embed)
-    await log_azione(interaction.guild, interaction.user, "🟢 Entrato in servizio", f"Lavoro: {lavoro.upper()}", discord.Color.green())
+    await log_azione(interaction.guild, interaction.user, "🟢 Entrato in servizio", f"Lavoro: {lavoro.upper()}", discord.Color.from_rgb(233, 30, 140))
 
 class StipendioApprovaView(discord.ui.View):
     """View con bottoni Accetta/Rifiuta per approvazione stipendio da parte dello staff."""
@@ -2773,8 +2773,8 @@ class StipendioApprovaView(discord.ui.View):
             child.disabled = True
         await interaction.message.edit(view=self)
 
-        embed = discord.Embed(title="✅ STIPENDIO APPROVATO", color=discord.Color.green(), timestamp=datetime.now())
-        embed.set_author(name="Madison State®", icon_url=LOGO_SERVER)
+        embed = discord.Embed(title="✅ STIPENDIO APPROVATO", color=discord.Color.from_rgb(233, 30, 140), timestamp=datetime.now())
+        embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
         embed.add_field(name="👤 Lavoratore", value=self.lavoratore.mention, inline=False)
         embed.add_field(name="💼 Lavoro", value=self.info_anagrafe.get("lavoro", "N/A").upper(), inline=True)
         embed.add_field(name="⏱️ Tempo", value=f"{self.ore}h {self.minuti_resto}min", inline=True)
@@ -2782,8 +2782,8 @@ class StipendioApprovaView(discord.ui.View):
         embed.add_field(name="✅ Approvato da", value=interaction.user.mention, inline=False)
         embed.set_footer(text="Fondi depositati sul conto Pacific Bank.")
         await interaction.response.send_message(embed=embed)
-        await log_staff(interaction.guild, f"✅ {interaction.user.mention} ha approvato lo stipendio di {self.lavoratore.mention}: **+{self.guadagno}$**", discord.Color.green())
-        await log_azione(interaction.guild, interaction.user, "💰 Stipendio approvato", f"{self.lavoratore.mention} → +{self.guadagno}$ | Lavoro: {self.info_anagrafe.get('lavoro','N/A').upper()}", discord.Color.green())
+        await log_staff(interaction.guild, f"✅ {interaction.user.mention} ha approvato lo stipendio di {self.lavoratore.mention}: **+{self.guadagno}$**", discord.Color.from_rgb(233, 30, 140))
+        await log_azione(interaction.guild, interaction.user, "💰 Stipendio approvato", f"{self.lavoratore.mention} → +{self.guadagno}$ | Lavoro: {self.info_anagrafe.get('lavoro','N/A').upper()}", discord.Color.from_rgb(233, 30, 140))
 
     @discord.ui.button(label="❌ RIFIUTA STIPENDIO", style=discord.ButtonStyle.danger, emoji="❌")
     async def rifiuta(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -2799,7 +2799,7 @@ class StipendioApprovaView(discord.ui.View):
         await interaction.message.edit(view=self)
 
         embed = discord.Embed(title="❌ STIPENDIO RIFIUTATO", color=discord.Color.red(), timestamp=datetime.now())
-        embed.set_author(name="Madison State®", icon_url=LOGO_SERVER)
+        embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
         embed.add_field(name="👤 Lavoratore", value=self.lavoratore.mention, inline=False)
         embed.add_field(name="💼 Lavoro", value=self.info_anagrafe.get("lavoro", "N/A").upper(), inline=True)
         embed.add_field(name="⏱️ Tempo", value=f"{self.ore}h {self.minuti_resto}min", inline=True)
@@ -2836,8 +2836,8 @@ async def servizio_esci(interaction: discord.Interaction):
     ore = minuti_lavorati // 60
     minuti_resto = minuti_lavorati % 60
 
-    embed = discord.Embed(title="🔴 FINE TURNO — IN ATTESA DI APPROVAZIONE", color=discord.Color.orange(), timestamp=datetime.now())
-    embed.set_author(name="Madison State®", icon_url=LOGO_SERVER)
+    embed = discord.Embed(title="🔴 FINE TURNO — IN ATTESA DI APPROVAZIONE", color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
+    embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
     embed.add_field(name="👤 Lavoratore", value=interaction.user.mention, inline=False)
     embed.add_field(name="💼 Lavoro Registrato", value=info_anagrafe['lavoro'].upper(), inline=False)
     embed.add_field(name="⏱️ Tempo lavorato", value=f"{ore}h {minuti_resto}min", inline=True)
@@ -2846,13 +2846,13 @@ async def servizio_esci(interaction: discord.Interaction):
     embed.set_footer(text="⏳ In attesa di approvazione da parte dello staff.")
     view = StipendioApprovaView(interaction.user, guadagno, info_anagrafe, ore, minuti_resto, stipendio_pieno)
     await interaction.response.send_message(embed=embed, view=view)
-    await log_azione(interaction.guild, interaction.user, "🔴 Fine turno (in attesa)", f"Lavoro: {info_anagrafe['lavoro'].upper()} | Tempo: {ore}h {minuti_resto}min | Guadagno: {guadagno}$", discord.Color.orange())
+    await log_azione(interaction.guild, interaction.user, "🔴 Fine turno (in attesa)", f"Lavoro: {info_anagrafe['lavoro'].upper()} | Tempo: {ore}h {minuti_resto}min | Guadagno: {guadagno}$", discord.Color.from_rgb(255, 107, 53))
 
 @bot.tree.command(name="apri-attivita", description="🟢 Comunica in chat IC che la tua attività è aperta")
 @_blocca_se_dorme()
 @app_commands.describe(lavoro="Scrivi il nome della tua attività")
 async def apri_attivita(interaction: discord.Interaction, lavoro: str):
-    embed = discord.Embed(color=discord.Color.green())
+    embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
     embed.description = (
         f"🟢 | **ATTIVITÀ APERTA**\n\n"
         f"➢ **{lavoro}** è ora **APERTO** e pronto a servirvi!\n\n"
@@ -3008,7 +3008,7 @@ async def spaccia(interaction: discord.Interaction, tipo: app_commands.Choice[st
                     _salva_dati()
 
                     for c in self.children: c.disabled = True
-                    embed_ok = discord.Embed(color=discord.Color.green())
+                    embed_ok = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
                     embed_ok.description = (
                         f"✅ | **TRATTATIVA CONCLUSA**\n\n"
                         f"➢ {inter.user.mention} ha acquistato **{quantita}g di {NOMI[tipo.value]}** ({icona_purezza} purezza {purezza}%)\n"
@@ -3022,7 +3022,7 @@ async def spaccia(interaction: discord.Interaction, tipo: app_commands.Choice[st
                     if inter2.user.id != interaction.user.id:
                         return await inter2.response.send_message("❌ Solo lo spacciatore può rispondere.", ephemeral=True)
                     for c in self.children: c.disabled = True
-                    embed_no = discord.Embed(color=discord.Color.orange())
+                    embed_no = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
                     embed_no.description = (
                         f"❌ | **OFFERTA RIFIUTATA**\n\n"
                         f"➢ {interaction.user.mention} ha rifiutato l'offerta di **{offerta}$** da {inter.user.mention}.\n"
@@ -3030,7 +3030,7 @@ async def spaccia(interaction: discord.Interaction, tipo: app_commands.Choice[st
                     )
                     await inter2.response.edit_message(embed=embed_no, view=self)
 
-            embed_tratt = discord.Embed(color=discord.Color.yellow())
+            embed_tratt = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
             embed_tratt.description = (
                 f"💬 | **OFFERTA IN ARRIVO**\n\n"
                 f"➢ {inter.user.mention} offre **{offerta}$** per {quantita}g di {NOMI[tipo.value]}\n"
@@ -3072,7 +3072,7 @@ async def spaccia(interaction: discord.Interaction, tipo: app_commands.Choice[st
             _salva_dati()
 
             for c in self.children: c.disabled = True
-            embed_ok = discord.Embed(color=discord.Color.green())
+            embed_ok = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
             embed_ok.description = (
                 f"✅ | **AFFARE CONCLUSO**\n\n"
                 f"➢ {inter.user.mention} ha acquistato **{quantita}g di {NOMI[tipo.value]}** ({icona_purezza} purezza {purezza}%)\n"
@@ -3099,7 +3099,7 @@ async def spaccia(interaction: discord.Interaction, tipo: app_commands.Choice[st
             )
             await inter.response.edit_message(embed=embed_no, view=self)
 
-    embed = discord.Embed(color=discord.Color.from_rgb(34, 139, 34))
+    embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
     embed.set_author(name=f"🤝 {interaction.user.display_name} propone un affare", icon_url=interaction.user.display_avatar.url)
     embed.description = (
         f"*\"{frase}\"*\n\n"
@@ -3122,7 +3122,7 @@ async def spaccia(interaction: discord.Interaction, tipo: app_commands.Choice[st
 @is_staff_or_direttore()
 async def bdaperto(interaction: discord.Interaction):
     img = "https://cdn.discordapp.com/attachments/1515862065384783914/1527503625868279849/file_00000000d32c71f497061f6d6d87c88d.png?ex=6a5e31dc&is=6a5ce05c&hm=d0d3ecd516bfe2e96dd18b550d8c77ab1e1fb3949f6e7255383a8f2580aa70e9&"
-    embed = discord.Embed(title="🟩 |BANDO APERTO", color=discord.Color.blue())
+    embed = discord.Embed(title="🟩 |BANDO APERTO", color=discord.Color.from_rgb(123, 47, 190))
     embed.set_image(url=img)
     
     await interaction.response.send_message("✅ Bando aperto inviato!", ephemeral=True)
@@ -3225,13 +3225,13 @@ CATEGORIA_STILE = {
     "Mitra":               {"emoji": "💨", "colore": discord.Color.from_rgb(160, 40, 40)},
     "Fucili d'Assalto":    {"emoji": "🪖", "colore": discord.Color.from_rgb(140, 30, 30)},
     "Fucili a Pompa":      {"emoji": "💣", "colore": discord.Color.from_rgb(120, 20, 20)},
-    "Cibo":                {"emoji": "🍽️", "colore": discord.Color.green()},
-    "Droga":               {"emoji": "🌿", "colore": discord.Color.from_rgb(34, 139, 34)},
-    "Medicina":            {"emoji": "💊", "colore": discord.Color.blue()},
-    "Veicoli":             {"emoji": "🚗", "colore": discord.Color.from_rgb(30, 144, 255)},
-    "Abbigliamento":       {"emoji": "👕", "colore": discord.Color.purple()},
-    "Elettronica":         {"emoji": "📱", "colore": discord.Color.from_rgb(0, 191, 255)},
-    "Generale":            {"emoji": "📦", "colore": discord.Color.gold()},
+    "Cibo":                {"emoji": "🍽️", "colore": discord.Color.from_rgb(233, 30, 140)},
+    "Droga":               {"emoji": "🌿", "colore": discord.Color.from_rgb(233, 30, 140)},
+    "Medicina":            {"emoji": "💊", "colore": discord.Color.from_rgb(123, 47, 190)},
+    "Veicoli":             {"emoji": "🚗", "colore": discord.Color.from_rgb(123, 47, 190)},
+    "Abbigliamento":       {"emoji": "👕", "colore": discord.Color.from_rgb(123, 47, 190)},
+    "Elettronica":         {"emoji": "📱", "colore": discord.Color.from_rgb(233, 30, 140)},
+    "Generale":            {"emoji": "📦", "colore": discord.Color.from_rgb(255, 200, 0)},
     # Categorie supermarket
     "🕵️ Investigazione": {"emoji": "🕵️", "colore": discord.Color.from_rgb(100, 100, 120)},
     "💰 Finanze Oscure":  {"emoji": "💰", "colore": discord.Color.from_rgb(180, 140, 20)},
@@ -3242,7 +3242,7 @@ def _get_cat_emoji(categoria: str) -> str:
     return CATEGORIA_STILE.get(categoria, {}).get("emoji", "📦")
 
 def _get_cat_colore(categoria: str) -> discord.Color:
-    return CATEGORIA_STILE.get(categoria, {}).get("colore", discord.Color.gold())
+    return CATEGORIA_STILE.get(categoria, {}).get("colore", discord.Color.from_rgb(255, 200, 0))
 
 
 class ItemViewCategoriaPagina(discord.ui.View):
@@ -3471,7 +3471,7 @@ class ModalDaiItem(discord.ui.Modal, title="➕ Dai Item a Cittadino"):
         _salva_dati()
 
         emoji = _get_cat_emoji(oggetti_creati.get(self.item_nome, {}).get("categoria", "Generale"))
-        embed = discord.Embed(color=discord.Color.green(), timestamp=datetime.now())
+        embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140), timestamp=datetime.now())
         embed.set_author(name="📦 ITEM ASSEGNATO", icon_url=LOGO_SERVER)
         desc_msg = (
             f"{emoji} **{self.item_nome}**\n\n"
@@ -3483,8 +3483,8 @@ class ModalDaiItem(discord.ui.Modal, title="➕ Dai Item a Cittadino"):
         embed.description = desc_msg
         embed.set_thumbnail(url=membro.display_avatar.url)
         await interaction.response.send_message(embed=embed)
-        await log_staff(interaction.guild, f"📦 {interaction.user.mention} ha dato **{self.item_nome}** x{qty} a {membro.mention}.", discord.Color.green())
-        await log_azione(interaction.guild, interaction.user, "📦 Item dato via Item View", f"**{self.item_nome}** x{qty} → {membro.mention}", discord.Color.green(), canale_origine=interaction.channel)
+        await log_staff(interaction.guild, f"📦 {interaction.user.mention} ha dato **{self.item_nome}** x{qty} a {membro.mention}.", discord.Color.from_rgb(233, 30, 140))
+        await log_azione(interaction.guild, interaction.user, "📦 Item dato via Item View", f"**{self.item_nome}** x{qty} → {membro.mention}", discord.Color.from_rgb(233, 30, 140), canale_origine=interaction.channel)
 
 
 class ModalCreaItem(discord.ui.Modal, title="📦 Crea Nuovo Item"):
@@ -3549,7 +3549,7 @@ class ModalCreaItem(discord.ui.Modal, title="📦 Crea Nuovo Item"):
         }
         _salva_dati()
 
-        embed = discord.Embed(color=discord.Color.gold(), timestamp=datetime.now())
+        embed = discord.Embed(color=discord.Color.from_rgb(255, 200, 0), timestamp=datetime.now())
         embed.set_author(name="📦 NUOVO ITEM CREATO", icon_url=LOGO_SERVER)
         embed.description = (
             f"**Nome ➢** {nome_k}\n\n"
@@ -3559,8 +3559,8 @@ class ModalCreaItem(discord.ui.Modal, title="📦 Crea Nuovo Item"):
         )
         embed.set_footer(text=f"Creato da {interaction.user.display_name} • {datetime.now().strftime('%d/%m/%Y %H:%M')}")
         await interaction.response.send_message(embed=embed, ephemeral=True)
-        await log_staff(interaction.guild, f"📦 {interaction.user.mention} ha creato l'item **{nome_k}** ({cat}) a {prezzo}$.", discord.Color.gold())
-        await log_azione(interaction.guild, interaction.user, "📦 Item creato", f"Nome: **{nome_k}** | Categoria: {cat} | Prezzo: {prezzo}$", discord.Color.gold(), canale_origine=interaction.channel)
+        await log_staff(interaction.guild, f"📦 {interaction.user.mention} ha creato l'item **{nome_k}** ({cat}) a {prezzo}$.", discord.Color.from_rgb(255, 200, 0))
+        await log_azione(interaction.guild, interaction.user, "📦 Item creato", f"Nome: **{nome_k}** | Categoria: {cat} | Prezzo: {prezzo}$", discord.Color.from_rgb(255, 200, 0), canale_origine=interaction.channel)
 
 
 class ItemViewHomeView(discord.ui.View):
@@ -3612,7 +3612,7 @@ class ItemViewHomeView(discord.ui.View):
         self.add_item(btn_crea)
 
     def build_embed(self) -> discord.Embed:
-        embed = discord.Embed(color=discord.Color.gold(), timestamp=datetime.now())
+        embed = discord.Embed(color=discord.Color.from_rgb(255, 200, 0), timestamp=datetime.now())
         embed.set_author(name="🗃️ ITEM VIEW — PANNELLO STAFF", icon_url=LOGO_SERVER)
 
         totale_item = len(oggetti_creati)
@@ -3678,7 +3678,7 @@ class ItemSellView(discord.ui.View):
         inventari[self.compratore_id].append(self.item)
         _salva_dati()
         for child in self.children: child.disabled = True
-        embed = discord.Embed(color=discord.Color.green())
+        embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
         embed.description = f"✅ Vendita completata! **{self.item}** trasferito per **{self.prezzo}$**."
         await interaction.response.edit_message(embed=embed, view=self)
 
@@ -3702,7 +3702,7 @@ async def item_sell(interaction: discord.Interaction, member: discord.Member, it
     if item not in inventari.get(uid, []) and item not in zaini.get(uid, []):
         return await interaction.response.send_message("❌ Non possiedi questo oggetto nel tuo inventario o zaino.", ephemeral=True)
         
-    embed = discord.Embed(color=discord.Color.blue())
+    embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
     embed.description = f"{interaction.user.mention} wants to sell you 1 **{item}** for 💳{price}\n\n**5 minutes to respond**"
     
     view = ItemSellView(interaction.user.id, member.id, item, price)
@@ -3722,7 +3722,7 @@ async def item_sell_autocomplete(interaction: discord.Interaction, current: str)
 @_blocca_se_dorme()
 @app_commands.describe(testo="Il testo del tuo post", foto="Immagine da allegare (opzionale)")
 async def post_instagram(interaction: discord.Interaction, testo: str, foto: discord.Attachment = None):
-    embed = discord.Embed(color=discord.Color.orange())
+    embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
     embed.description = (
         "**📱 POST INSTAGRAM 📱**\n\n"
         f"**CITTADINO ➢** {interaction.user.mention}\n\n"
@@ -3732,14 +3732,14 @@ async def post_instagram(interaction: discord.Interaction, testo: str, foto: dis
         embed.set_image(url=foto.url)
     
     await interaction.response.send_message(embed=embed)
-    await log_azione(interaction.guild, interaction.user, "📸 Post Instagram", f"Testo: {testo[:80]}", discord.Color.orange(), canale_origine=interaction.channel)
+    await log_azione(interaction.guild, interaction.user, "📸 Post Instagram", f"Testo: {testo[:80]}", discord.Color.from_rgb(255, 107, 53), canale_origine=interaction.channel)
 
 @bot.tree.command(name="fattura", description="🧾 Emetti una fattura a un cliente")
 async def fattura(interaction: discord.Interaction, dipendente: discord.Member, cliente: str, oggetto_acquistato: str, importo: str):
     EMOJI_MONEY = "💰"   
     EMOJI_FRECCIA = "➢"
-    embed = discord.Embed(color=discord.Color.from_rgb(46, 204, 113))
-    embed.set_author(name="Madison State®", icon_url=LOGO_SERVER)
+    embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
+    embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
     embed.description = (
         f"{EMOJI_MONEY} **Fattura** {EMOJI_MONEY}\n\n"
         f"**Dipendente {EMOJI_FRECCIA}**\n{dipendente.mention}\n\n"
@@ -3753,8 +3753,8 @@ async def fattura(interaction: discord.Interaction, dipendente: discord.Member, 
 async def fascicolo_medico(interaction: discord.Interaction):
     user_id = interaction.user.id
     dati = fascicoli_medici.get(user_id)
-    embed = discord.Embed(color=discord.Color.blue())
-    embed.set_author(name="Madison State®", icon_url=LOGO_SERVER)
+    embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
+    embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
     if not dati: embed.description = "🩺 | **Fascicolo Medico**\n\n✅ Nessun precedente medico registrato. Cartella clinica pulita."
     else: embed.description = f"🩺 | **Fascicolo Medico**\n\n**Cittadino ➢**\n{interaction.user.mention}\n\n**Diagnosi/Interventi ➢**\n{dati.get('note', 'N/A')}\n\n**Ultimo aggiornamento ➢**\n{dati.get('data', 'N/A')}"
     await interaction.response.send_message(embed=embed)
@@ -3766,7 +3766,7 @@ async def me(interaction: discord.Interaction, azione: str):
     embed.set_author(name="🎬 AZIONE RP 💬")
     embed.description = f"{interaction.user.mention} ➢ *{azione}*"
     await interaction.response.send_message(embed=embed)
-    await log_azione(interaction.guild, interaction.user, "🎭 Azione RP /me", f"{azione[:100]}", discord.Color.teal(), canale_origine=interaction.channel)
+    await log_azione(interaction.guild, interaction.user, "🎭 Azione RP /me", f"{azione[:100]}", discord.Color.from_rgb(233, 30, 140), canale_origine=interaction.channel)
 
 
 @bot.tree.command(name="messaggio", description="✉️ Invia un messaggio privato IC (in game)")
@@ -3827,7 +3827,7 @@ async def portafoglio(interaction: discord.Interaction):
                 if uid not in documenti_identita:
                     return await inter.response.send_message("\u274c Nessun documento registrato.", ephemeral=True)
                 dati = documenti_identita[uid]
-                embed = discord.Embed(color=discord.Color.from_rgb(255, 215, 0))
+                embed = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
                 embed.description = (
                     f"\U0001f4c4 | **DOCUMENTO D'IDENTIT\u00c0**\n\n"
                     f"**Nome:**\n\u27a2 *{dati.get('nome','N/A')}*\n\n"
@@ -3842,7 +3842,7 @@ async def portafoglio(interaction: discord.Interaction):
                 patenti_utente = patenti.get(uid, [])
                 if not patenti_utente:
                     return await inter.response.send_message("\u274c Nessuna patente registrata.", ephemeral=True)
-                embed = discord.Embed(color=discord.Color.from_rgb(30, 144, 255))
+                embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
                 embed.description = "\U0001f4cb | **PATENTE**\n\n" + "\n".join([f"\u27a2 {p}" for p in patenti_utente])
                 await inter.response.send_message(embed=embed, ephemeral=True)
             elif scelta == "PORTO D'ARMI":
@@ -3856,7 +3856,7 @@ async def portafoglio(interaction: discord.Interaction):
                 dati_med = fascicoli_medici.get(uid, {})
                 if not dati_med:
                     return await inter.response.send_message("\u2705 Nessun precedente medico.", ephemeral=True)
-                embed = discord.Embed(color=discord.Color.blue())
+                embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
                 embed.description = (
                     f"\U0001fa7a | **FASCICOLO MEDICO**\n\n"
                     f"**Gruppo Sanguigno:**\n\u27a2 {dati_med.get('gruppo_sanguigno','N/A')}\n\n"
@@ -3870,7 +3870,7 @@ async def portafoglio(interaction: discord.Interaction):
             super().__init__(timeout=60)
             self.add_item(PortafoglioSelect())
 
-    embed = discord.Embed(color=discord.Color.from_rgb(46, 204, 113))
+    embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
     embed.description = (
         f"\U0001f4b3 | **PORTAFOGLIO**\n\n"
         f"**CONTANTI \u27a2**\n{soldi}$\n\n"
@@ -3913,7 +3913,7 @@ async def inventario(interaction: discord.Interaction, utente: discord.Member = 
     elif perc < 0.8: colore_peso = "🟨"
     else:            colore_peso = "🟥"
     barra_peso = colore_peso * blocchi_pieni + "⬛" * (10 - blocchi_pieni)
-    embed = discord.Embed(color=discord.Color.from_rgb(46, 204, 113))
+    embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
     intestazione = f"📦 | **INVENTARIO DI {target.display_name.upper()}**" if utente else "📦 | **IL MIO INVENTARIO**"
     embed.description = (
         f"{intestazione}\n\n{righe}\n\n"
@@ -3921,7 +3921,7 @@ async def inventario(interaction: discord.Interaction, utente: discord.Member = 
     )
     embed.set_thumbnail(url=target.display_avatar.url)
     await interaction.response.send_message(embed=embed)
-    await log_azione(interaction.guild, interaction.user, "📦 Inventario consultato", f"Target: {target.display_name} | Peso: {peso_tot} kg", discord.Color.blurple(), canale_origine=interaction.channel)
+    await log_azione(interaction.guild, interaction.user, "📦 Inventario consultato", f"Target: {target.display_name} | Peso: {peso_tot} kg", discord.Color.from_rgb(123, 47, 190), canale_origine=interaction.channel)
 
 @bot.tree.command(name="inventario-cofano", description="🚗 Controlla gli oggetti nel cofano del veicolo")
 async def inventario_cofano(interaction: discord.Interaction, targa: str):
@@ -3955,7 +3955,7 @@ async def metti_cofano(interaction: discord.Interaction, targa: str):
             inventari[uid].remove(scelta)
             if targa_up not in inventari_cofani: inventari_cofani[targa_up] = []
             inventari_cofani[targa_up].append(scelta)
-            embed = discord.Embed(color=discord.Color.from_rgb(30, 144, 255))
+            embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
             embed.description = (
                 f"📥 | **OGGETTO NEL COFANO**\n\n"
                 f"➢ **{scelta}** rimosso dall'inventario.\n"
@@ -3968,7 +3968,7 @@ async def metti_cofano(interaction: discord.Interaction, targa: str):
             super().__init__(timeout=30)
             self.add_item(CofanoSelect())
 
-    embed = discord.Embed(color=discord.Color.from_rgb(30, 144, 255))
+    embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
     embed.description = f"📥 | **METTI NEL COFANO**\n\n➢ Veicolo: `[{targa_up}]`\n➢ Scegli un oggetto dall'inventario."
     await interaction.response.send_message(embed=embed, view=CofanoView(), ephemeral=True)
 
@@ -4018,7 +4018,7 @@ class ChiamataView(discord.ui.View):
             overwrites=overwrites
         )
 
-        embed_ok = discord.Embed(color=discord.Color.from_rgb(46, 204, 113))
+        embed_ok = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
         embed_ok.description = (
             f"📞 | **CHIAMATA ATTIVA**\n\n"
             f"**DA ➢**\n{self.chiamante.mention}\n\n"
@@ -4116,7 +4116,7 @@ async def chiama(interaction: discord.Interaction, utente: discord.Member, messa
     if utente.id == interaction.user.id:
         return await interaction.response.send_message("❌ Non puoi chiamare te stesso.", ephemeral=True)
 
-    embed = discord.Embed(color=discord.Color.from_rgb(46, 204, 113))
+    embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
     embed.description = (
         f"📞 | **CHIAMATA IN ARRIVO**\n\n"
         f"**DA ➢**\n{interaction.user.mention}\n\n"
@@ -4133,7 +4133,7 @@ async def chiama(interaction: discord.Interaction, utente: discord.Member, messa
         await interaction.response.send_message(
             f"📞 Chiamata inviata a {utente.mention} in DM!", ephemeral=True
         )
-        await log_azione(interaction.guild, interaction.user, "📞 Chiamata telefonica", f"A: {utente.mention} | Messaggio: {messaggio[:60]}", discord.Color.green(), canale_origine=interaction.channel)
+        await log_azione(interaction.guild, interaction.user, "📞 Chiamata telefonica", f"A: {utente.mention} | Messaggio: {messaggio[:60]}", discord.Color.from_rgb(233, 30, 140), canale_origine=interaction.channel)
     except discord.Forbidden:
         await interaction.response.send_message(
             f"❌ Impossibile contattare {utente.mention}: ha i DM chiusi.", ephemeral=True
@@ -4169,7 +4169,7 @@ async def metti_zaino(interaction: discord.Interaction):
             inventari[uid].remove(scelta)
             if uid not in zaini: zaini[uid] = []
             zaini[uid].append(scelta)
-            embed = discord.Embed(color=discord.Color.from_rgb(46, 204, 113))
+            embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
             embed.description = f"🎒 | **OGGETTO NELLO ZAINO**\n\n➢ **{scelta}** spostato dall'inventario allo zaino."
             await inter.response.edit_message(embed=embed, view=None)
 
@@ -4178,7 +4178,7 @@ async def metti_zaino(interaction: discord.Interaction):
             super().__init__(timeout=30)
             self.add_item(ZainoSelect())
 
-    embed = discord.Embed(color=discord.Color.from_rgb(46, 204, 113))
+    embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
     embed.description = "🎒 | **METTI NELLO ZAINO**\n\n➢ Seleziona un oggetto dall'inventario da spostare nello zaino."
     await interaction.response.send_message(embed=embed, view=ZainoView(), ephemeral=True)
 
@@ -4284,14 +4284,14 @@ async def pesca(interaction: discord.Interaction):
         portafogli[uid] = portafogli.get(uid, 0) + valore
         if uid not in inventari: inventari[uid] = []
         inventari[uid].append(risultato)
-        embed = discord.Embed(color=discord.Color.from_rgb(30, 144, 255))
+        embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
         embed.description = (
             f"🎣 | **PESCA**\n\n"
             f"➢ Hai pescato un **{risultato}**!\n"
             f"➢ Guadagnato **{valore}$** e aggiunto all'inventario."
         )
     else:
-        embed = discord.Embed(color=discord.Color.dark_gray())
+        embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
         embed.description = f"🎣 | **PESCA**\n\n➢ Hai pescato... **{risultato}**. Meglio la prossima volta!"
     embed.set_footer(text=f"{datetime.now().strftime('%d/%m/%Y %H:%M')}")
     await interaction.response.send_message(embed=embed)
@@ -4343,7 +4343,7 @@ async def shop(interaction: discord.Interaction):
                 f"➢ **{n}** — {d.get('descrizione','N/A')} | {d.get('prezzo',0)}$ | Stock: {d.get('quantita',0)}"
                 for n, d in items_cat.items()
             ])
-            embed = discord.Embed(color=discord.Color.gold())
+            embed = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
             embed.description = f"🛒 | **NEGOZIO — {cat.upper()}**\n\n{righe}"
             embed.set_thumbnail(url=LOGO_SERVER)
 
@@ -4371,7 +4371,7 @@ async def shop(interaction: discord.Interaction):
                     if uid2 not in inventari: inventari[uid2] = []
                     inventari[uid2].append(nome_item)
                     _salva_dati()
-                    embed_ok = discord.Embed(color=discord.Color.from_rgb(46, 204, 113))
+                    embed_ok = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
                     embed_ok.description = (
                         f"✅ | **ACQUISTO COMPLETATO**\n\n"
                         f"➢ {inter2.user.mention} ha acquistato **{nome_item}** per **{prezzo}$**.\n"
@@ -4391,7 +4391,7 @@ async def shop(interaction: discord.Interaction):
             super().__init__(timeout=60)
             self.add_item(ShopCategoriaSelect())
 
-    embed_sel = discord.Embed(color=discord.Color.gold())
+    embed_sel = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
     embed_sel.description = "🛒 | **NEGOZIO**\n\n➢ Seleziona la categoria dal menu qui sotto."
     embed_sel.set_thumbnail(url=LOGO_SERVER)
     await interaction.response.send_message(embed_sel, view=ShopView())
@@ -4695,7 +4695,7 @@ async def mangia(interaction: discord.Interaction):
             bf = _barra_fame(cur["fame"], FAME_MAX)
             bs = _barra_sete(cur["sete"], SETE_MAX)
             emoji_i = EMOJI_ITEM.get(scelta, "🍴")
-            embed = discord.Embed(color=discord.Color.from_rgb(46, 204, 113))
+            embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
             embed.set_author(name=f"Hai mangiato: {scelta}", icon_url=inter.user.display_avatar.url)
             embed.description = (
                 f"{emoji_i}  **+{guadagnato} fame recuperata!**\n\n"
@@ -4704,14 +4704,14 @@ async def mangia(interaction: discord.Interaction):
             )
             embed.set_footer(text=f"{inter.user.display_name} • {datetime.now().strftime('%d/%m/%Y %H:%M')}")
             await inter.response.edit_message(embed=embed, view=None)
-            await log_azione(inter.guild, inter.user, "🍽️ Ha mangiato", f"Item: **{scelta}** | +{guadagnato} fame", discord.Color.green())
+            await log_azione(inter.guild, inter.user, "🍽️ Ha mangiato", f"Item: **{scelta}** | +{guadagnato} fame", discord.Color.from_rgb(233, 30, 140))
 
     class MangiaView(discord.ui.View):
         def __init__(self):
             super().__init__(timeout=45)
             self.add_item(MangiaSel())
 
-    embed_sel = discord.Embed(color=discord.Color.from_rgb(255, 140, 0))
+    embed_sel = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
     embed_sel.set_author(name="🍽️  Menu Cibo", icon_url=interaction.user.display_avatar.url)
     embed_sel.description = (
         f"🍽️ **FAME**\n{barra_f}  `{b['fame']}/{FAME_MAX}` — {_stato_testo(b['fame'])}\n\n"
@@ -4734,7 +4734,7 @@ async def bevi(interaction: discord.Interaction):
     barra_s = _barra_sete(b["sete"], SETE_MAX)
 
     if not bev_inv:
-        embed = discord.Embed(color=discord.Color.from_rgb(50, 100, 200))
+        embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
         embed.set_author(name="💧  Menu Bevande", icon_url=interaction.user.display_avatar.url)
         embed.description = (
             "❌ **Nessuna bevanda nell'inventario!**\n"
@@ -4780,7 +4780,7 @@ async def bevi(interaction: discord.Interaction):
             bf = _barra_fame(cur["fame"], FAME_MAX)
             bs = _barra_sete(cur["sete"], SETE_MAX)
             emoji_i = EMOJI_ITEM.get(scelta, "🥤")
-            embed = discord.Embed(color=discord.Color.from_rgb(30, 144, 255))
+            embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
             embed.set_author(name=f"Hai bevuto: {scelta}", icon_url=inter.user.display_avatar.url)
             embed.description = (
                 f"{emoji_i}  **+{guadagnato} sete recuperata!**\n\n"
@@ -4789,14 +4789,14 @@ async def bevi(interaction: discord.Interaction):
             )
             embed.set_footer(text=f"{inter.user.display_name} • {datetime.now().strftime('%d/%m/%Y %H:%M')}")
             await inter.response.edit_message(embed=embed, view=None)
-            await log_azione(inter.guild, inter.user, "💧 Ha bevuto", f"Item: **{scelta}** | +{guadagnato} sete", discord.Color.blue())
+            await log_azione(inter.guild, inter.user, "💧 Ha bevuto", f"Item: **{scelta}** | +{guadagnato} sete", discord.Color.from_rgb(123, 47, 190))
 
     class BeviView(discord.ui.View):
         def __init__(self):
             super().__init__(timeout=45)
             self.add_item(BeviSel())
 
-    embed_sel = discord.Embed(color=discord.Color.from_rgb(30, 144, 255))
+    embed_sel = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
     embed_sel.set_author(name="💧  Menu Bevande", icon_url=interaction.user.display_avatar.url)
     embed_sel.description = (
         f"🍽️ **FAME**\n{barra_f}  `{b['fame']}/{FAME_MAX}` — {_stato_testo(b['fame'])}\n\n"
@@ -4822,8 +4822,8 @@ async def stato(interaction: discord.Interaction, utente: discord.Member = None)
     elif media >= 50: icona_gen, stato_gen = "🟡", "Nella norma"
     elif media >= 25: icona_gen, stato_gen = "🟠", "Inizia a stare male"
     else:             icona_gen, stato_gen = "🔴", "Stato critico!"
-    if media >= 65:   colore = discord.Color.from_rgb(46, 204, 113)
-    elif media >= 35: colore = discord.Color.from_rgb(241, 196, 15)
+    if media >= 65:   colore = discord.Color.from_rgb(233, 30, 140)
+    elif media >= 35: colore = discord.Color.from_rgb(255, 200, 0)
     else:             colore = discord.Color.from_rgb(231, 76, 60)
     embed = discord.Embed(color=colore)
     embed.set_author(
@@ -4856,7 +4856,7 @@ async def dormi(interaction: discord.Interaction):
             "😴 Stai già dormendo! Usa `/sveglia` per alzarti.", ephemeral=True
         )
     personaggi_addormentati.add(uid)
-    embed = discord.Embed(color=discord.Color.dark_gray())
+    embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
     embed.set_author(name=f"😴  {interaction.user.display_name} si è addormentato/a", icon_url=interaction.user.display_avatar.url)
     embed.description = (
         "🛏️ | **PERSONAGGIO ADDORMENTATO**\n\n"
@@ -4867,7 +4867,7 @@ async def dormi(interaction: discord.Interaction):
     )
     embed.set_footer(text=f"Addormentato alle {datetime.now().strftime('%H:%M')} del {datetime.now().strftime('%d/%m/%Y')}")
     await interaction.response.send_message(embed=embed)
-    await log_azione(interaction.guild, interaction.user, "😴 Personaggio addormentato", "", discord.Color.dark_gray(), canale_origine=interaction.channel)
+    await log_azione(interaction.guild, interaction.user, "😴 Personaggio addormentato", "", discord.Color.from_rgb(123, 47, 190), canale_origine=interaction.channel)
 
 
 @bot.tree.command(name="sveglia", description="☀️ Sveglia il tuo personaggio")
@@ -4881,7 +4881,7 @@ async def sveglia(interaction: discord.Interaction):
     b = _init_bisogni(uid)
     barra_f = _barra_fame(b["fame"], FAME_MAX)
     barra_s = _barra_sete(b["sete"], SETE_MAX)
-    embed = discord.Embed(color=discord.Color.from_rgb(255, 215, 0))
+    embed = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
     embed.set_author(name=f"☀️  {interaction.user.display_name} si è svegliato/a", icon_url=interaction.user.display_avatar.url)
     embed.description = (
         "🌅 | **BUONGIORNO!**\n\n"
@@ -5108,7 +5108,7 @@ class SupermarketCiboView(discord.ui.View):
                     inventari[uid] = []
                 inventari[uid].append(nome_item)
                 _salva_dati()
-                embed = discord.Embed(color=discord.Color.from_rgb(46, 204, 113))
+                embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
                 embed.set_author(name="🛒 Supermarket — Acquisto completato")
                 embed.description = (
                     f"✅ Hai acquistato **{nome_item}** per **{prezzo}$**!\n"
@@ -5117,7 +5117,7 @@ class SupermarketCiboView(discord.ui.View):
                 )
                 embed.set_footer(text=f"Saldo rimasto: {portafogli[uid]}$")
                 await inter.response.edit_message(embed=embed, view=None)
-                await log_azione(inter.guild, inter.user, "🛒 Acquisto Supermarket (Cibo)", f"Item: **{nome_item}** | Prezzo: {prezzo}$", discord.Color.green())
+                await log_azione(inter.guild, inter.user, "🛒 Acquisto Supermarket (Cibo)", f"Item: **{nome_item}** | Prezzo: {prezzo}$", discord.Color.from_rgb(233, 30, 140))
 
         return CiboSelect()
 
@@ -5173,7 +5173,7 @@ class SupermarketBevandeView(discord.ui.View):
                     inventari[uid] = []
                 inventari[uid].append(nome_item)
                 _salva_dati()
-                embed = discord.Embed(color=discord.Color.from_rgb(30, 144, 255))
+                embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
                 embed.set_author(name="🛒 Supermarket — Acquisto completato")
                 embed.description = (
                     f"✅ Hai acquistato **{nome_item}** per **{prezzo}$**!\n"
@@ -5182,7 +5182,7 @@ class SupermarketBevandeView(discord.ui.View):
                 )
                 embed.set_footer(text=f"Saldo rimasto: {portafogli[uid]}$")
                 await inter.response.edit_message(embed=embed, view=None)
-                await log_azione(inter.guild, inter.user, "🛒 Acquisto Supermarket (Bevanda)", f"Item: **{nome_item}** | Prezzo: {prezzo}$", discord.Color.blue())
+                await log_azione(inter.guild, inter.user, "🛒 Acquisto Supermarket (Bevanda)", f"Item: **{nome_item}** | Prezzo: {prezzo}$", discord.Color.from_rgb(123, 47, 190))
 
         return BevandeSelect()
 
@@ -5237,7 +5237,7 @@ class SupermarketItemView(discord.ui.View):
                     inventari[uid] = []
                 inventari[uid].append(nome_item)
                 _salva_dati()
-                embed = discord.Embed(color=discord.Color.from_rgb(255, 215, 0))
+                embed = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
                 embed.set_author(name="🛒 Supermarket — Acquisto completato")
                 embed.description = (
                     f"✅ Hai acquistato **{nome_item}** per **{prezzo}$**!\n"
@@ -5246,7 +5246,7 @@ class SupermarketItemView(discord.ui.View):
                 )
                 embed.set_footer(text=f"Saldo rimasto: {portafogli[uid]}$")
                 await inter.response.edit_message(embed=embed, view=None)
-                await log_azione(inter.guild, inter.user, "🛒 Acquisto Supermarket (Item)", f"Item: **{nome_item}** | Prezzo: {prezzo}$", discord.Color.gold())
+                await log_azione(inter.guild, inter.user, "🛒 Acquisto Supermarket (Item)", f"Item: **{nome_item}** | Prezzo: {prezzo}$", discord.Color.from_rgb(255, 200, 0))
 
         return ItemSelect()
 
@@ -5337,7 +5337,7 @@ class ModalCreaItemSupermarket(discord.ui.Modal):
         _salva_dati()
 
         emoji_cat = {"Cibo": "🍽️", "Bevande": "🥤", "Item": "🎒"}.get(self.categoria_sel, "📦")
-        embed = discord.Embed(color=discord.Color.gold(), timestamp=datetime.now())
+        embed = discord.Embed(color=discord.Color.from_rgb(255, 200, 0), timestamp=datetime.now())
         embed.set_author(name="🛒 NUOVO ITEM SUPERMARKET CREATO", icon_url=LOGO_SERVER)
         embed.description = (
             f"{emoji_cat} **Nome ➢** {nome_k}\n\n"
@@ -5348,8 +5348,8 @@ class ModalCreaItemSupermarket(discord.ui.Modal):
         )
         embed.set_footer(text=f"Creato da {interaction.user.display_name} • {datetime.now().strftime('%d/%m/%Y %H:%M')}")
         await interaction.response.send_message(embed=embed, ephemeral=True)
-        await log_staff(interaction.guild, f"🛒 {interaction.user.mention} ha creato l'item supermarket **{nome_k}** ({self.categoria_sel}) a {prezzo}$.", discord.Color.gold())
-        await log_azione(interaction.guild, interaction.user, "🛒 Item Supermarket creato", f"Nome: **{nome_k}** | Cat: {self.categoria_sel} | Prezzo: {prezzo}$", discord.Color.gold(), canale_origine=interaction.channel)
+        await log_staff(interaction.guild, f"🛒 {interaction.user.mention} ha creato l'item supermarket **{nome_k}** ({self.categoria_sel}) a {prezzo}$.", discord.Color.from_rgb(255, 200, 0))
+        await log_azione(interaction.guild, interaction.user, "🛒 Item Supermarket creato", f"Nome: **{nome_k}** | Cat: {self.categoria_sel} | Prezzo: {prezzo}$", discord.Color.from_rgb(255, 200, 0), canale_origine=interaction.channel)
 
 
 class SupermarketStaffCategoriaView(discord.ui.View):
@@ -5392,7 +5392,7 @@ class SupermarketView(discord.ui.View):
         if not items:
             items = [{"nome": p["nome"], "prezzo": p["prezzo"], "recupero": p["recupero"]} for p in SUPERMARKET_CIBO]
         righe = "\n".join([f"➢ **{p['nome']}** — {p['prezzo']}$ | +{p.get('recupero','?')} fame" for p in items])
-        embed = discord.Embed(color=discord.Color.from_rgb(46, 204, 113))
+        embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
         embed.set_author(name="🛒 Supermarket — 🍽️ Cibo")
         embed.description = f"Seleziona un prodotto dal menu:\n\n{righe}"
         embed.set_footer(text=f"Il tuo saldo: {portafogli.get(self.uid, 0)}$")
@@ -5406,7 +5406,7 @@ class SupermarketView(discord.ui.View):
         if not items:
             items = [{"nome": p["nome"], "prezzo": p["prezzo"], "recupero": p["recupero"]} for p in SUPERMARKET_BEVANDE]
         righe = "\n".join([f"➢ **{p['nome']}** — {p['prezzo']}$ | +{p.get('recupero','?')} sete" for p in items])
-        embed = discord.Embed(color=discord.Color.from_rgb(30, 144, 255))
+        embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
         embed.set_author(name="🛒 Supermarket — 🥤 Bevande")
         embed.description = f"Seleziona una bevanda dal menu:\n\n{righe}"
         embed.set_footer(text=f"Il tuo saldo: {portafogli.get(self.uid, 0)}$")
@@ -5423,7 +5423,7 @@ class SupermarketView(discord.ui.View):
         # Unisci: prima i fissi, poi sovrascrivi/aggiungi i nuovi
         tutti = {**items_fissi, **items_nuovi}
         righe = "\n".join([f"➢ **{p['nome']}** — {p['prezzo']}$" for p in tutti.values()])
-        embed = discord.Embed(color=discord.Color.from_rgb(255, 215, 0))
+        embed = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
         embed.set_author(name="🛒 Supermarket — 🎒 Item")
         embed.description = f"Seleziona un item dal menu:\n\n{righe}"
         embed.set_footer(text=f"Il tuo saldo: {portafogli.get(self.uid, 0)}$")
@@ -5492,7 +5492,7 @@ async def supermarket(interaction: discord.Interaction):
     saldo = portafogli.get(uid, 0)
     membro = await _get_member(interaction)
     is_dir = _is_direttore_supermarket(membro)
-    embed = discord.Embed(color=discord.Color.from_rgb(255, 165, 0))
+    embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
     embed.set_author(name="🛒 Supermarket — Benvenuto!", icon_url=LOGO_SERVER)
     desc = (
         "🏪 **Commerciante:**\n"
@@ -5522,7 +5522,7 @@ async def dormi_prefix(ctx):
     if uid in personaggi_addormentati:
         return await ctx.send("😴 Stai già dormendo! Usa `!sveglia` per alzarti.", delete_after=10)
     personaggi_addormentati.add(uid)
-    embed = discord.Embed(color=discord.Color.dark_gray())
+    embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190))
     embed.set_author(name=f"😴  {ctx.author.display_name} si è addormentato/a", icon_url=ctx.author.display_avatar.url)
     embed.description = (
         "🛏️ | **PERSONAGGIO ADDORMENTATO**\n\n"
@@ -5543,7 +5543,7 @@ async def sveglia_prefix(ctx):
     b = _init_bisogni(uid)
     barra_f = _barra_fame(b["fame"], FAME_MAX)
     barra_s = _barra_sete(b["sete"], SETE_MAX)
-    embed = discord.Embed(color=discord.Color.from_rgb(255, 215, 0))
+    embed = discord.Embed(color=discord.Color.from_rgb(255, 200, 0))
     embed.set_author(name=f"☀️  {ctx.author.display_name} si è svegliato/a", icon_url=ctx.author.display_avatar.url)
     embed.description = (
         "🌅 | **BUONGIORNO!**\n\n"
@@ -5733,7 +5733,7 @@ async def armeria_gestione(interaction: discord.Interaction):
     if not _is_direttore_armeria(membro):
         return await interaction.response.send_message("❌ Accesso negato. Riservato al Direttore dell'Armeria.", ephemeral=True)
     embed = discord.Embed(title="🏪 | GESTIONE ARMERIA", color=discord.Color.red(), timestamp=datetime.now())
-    embed.set_author(name="Madison State® — Armeria", icon_url=LOGO_SERVER)
+    embed.set_author(name="Eclipse City RP® — Armeria", icon_url=LOGO_SERVER)
     embed.set_thumbnail(url=LOGO_SERVER)
     embed.description = (
         "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -5791,7 +5791,7 @@ def _make_vendita_select_view(direttore, cliente):
                     _salva_dati()
 
                     embed = discord.Embed(title="🔫 | ACQUISTO ARMERIA", color=discord.Color.red(), timestamp=datetime.now())
-                    embed.set_author(name="Madison State® — Armeria", icon_url=LOGO_SERVER)
+                    embed.set_author(name="Eclipse City RP® — Armeria", icon_url=LOGO_SERVER)
                     embed.set_thumbnail(url=LOGO_SERVER)
                     embed.description = (
                         f"━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -5818,7 +5818,7 @@ async def armeria_vendi(interaction: discord.Interaction, cliente: discord.Membe
         return await interaction.response.send_message("❌ Stock vuoto! Usa `/armeria-gestione` prima.", ephemeral=True)
 
     embed = discord.Embed(title="🔫 | VENDITA ARMERIA", color=discord.Color.red(), timestamp=datetime.now())
-    embed.set_author(name="Madison State® — Armeria", icon_url=LOGO_SERVER)
+    embed.set_author(name="Eclipse City RP® — Armeria", icon_url=LOGO_SERVER)
     embed.set_thumbnail(url=LOGO_SERVER)
     embed.description = (
         f"━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
@@ -5892,13 +5892,13 @@ class KitFdoModal(discord.ui.Modal, title="🗃️ Crea Kit Armadietto"):
             contenuto += "\n" + self.contenuto2.value.strip()
         armadietto_fdo[nome] = {"categoria": cat, "contenuto": contenuto, "peso": p, "creato_da": interaction.user.display_name}
         _salva_dati()
-        embed = discord.Embed(color=discord.Color.blue(), title="✅ Kit creato")
+        embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190), title="✅ Kit creato")
         embed.add_field(name="📦 Nome", value=nome, inline=True)
         embed.add_field(name="🏷️ Categoria", value=cat, inline=True)
         embed.add_field(name="⚖️ Peso", value=f"{p} kg", inline=True)
         embed.add_field(name="📋 Contenuto", value=contenuto[:1024], inline=False)
         await interaction.response.send_message(embed=embed, ephemeral=True)
-        await log_staff(interaction.guild, f"🗃️ {interaction.user.mention} ha creato il kit **{nome}** [{cat}] ({p}kg)", discord.Color.blue())
+        await log_staff(interaction.guild, f"🗃️ {interaction.user.mention} ha creato il kit **{nome}** [{cat}] ({p}kg)", discord.Color.from_rgb(123, 47, 190))
 
 
 class ArmadiettoFdoCatView(discord.ui.View):
@@ -5917,7 +5917,7 @@ class ArmadiettoFdoCatView(discord.ui.View):
             desc = ""
             for nome, dati in kit_cat.items():
                 desc += f"**{nome}**\n📋 {dati['contenuto'][:500]}\n⚖️ {dati['peso']} kg | 👤 {dati['creato_da']}\n\n"
-            embed = discord.Embed(title=f"🗃️ Kit {cat}", description=desc[:4000] or "Nessun kit.", color=discord.Color.blue())
+            embed = discord.Embed(title=f"🗃️ Kit {cat}", description=desc[:4000] or "Nessun kit.", color=discord.Color.from_rgb(123, 47, 190))
             await interaction.response.send_message(embed=embed, ephemeral=True)
         elif self.azione == "elimina":
             opzioni = [discord.SelectOption(label=n[:100], value=n) for n in list(kit_cat.keys())[:25]]
@@ -5956,14 +5956,14 @@ class ArmadiettoFdoCatView(discord.ui.View):
                             inventari[membro.id].append(item_kit)
                             PESI_OGGETTI[item_kit] = 0.0
                             _salva_dati()
-                            embed = discord.Embed(color=discord.Color.green(), title="📤 Kit Assegnato")
+                            embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140), title="📤 Kit Assegnato")
                             embed.add_field(name="👤 Agente", value=membro.mention, inline=True)
                             embed.add_field(name="🏷️ Categoria", value=dati["categoria"], inline=True)
                             embed.add_field(name="📦 Kit", value=nome_kit, inline=False)
                             embed.add_field(name="📋 Contenuto", value=dati["contenuto"][:1024], inline=False)
                             embed.add_field(name="⚖️ Peso dotazione", value=f"{dati['peso']} kg (non pesa nell'inventario)", inline=False)
                             await inter2.response.send_message(embed=embed)
-                            await log_staff(inter2.guild, f"📤 {inter2.user.mention} → kit **{nome_kit}** [{dati['categoria']}] a {membro.mention}", discord.Color.green())
+                            await log_staff(inter2.guild, f"📤 {inter2.user.mention} → kit **{nome_kit}** [{dati['categoria']}] a {membro.mention}", discord.Color.from_rgb(233, 30, 140))
                     await inter.response.send_modal(AgenteModal())
             v = discord.ui.View(timeout=60); v.add_item(AsSel())
             await interaction.response.send_message("Scegli il kit:", view=v, ephemeral=True)
@@ -6018,7 +6018,7 @@ class ArmadiettoFdoView(discord.ui.View):
                 _salva_dati()
                 nome = item_kit.replace("🗃️ ", "")
                 await inter2.response.send_message(f"✅ Kit **{nome}** riconsegnato.", ephemeral=True)
-                await log_staff(inter2.guild, f"🗑️ {inter2.user.mention} ha riconsegnato il kit **{nome}**.", discord.Color.orange())
+                await log_staff(inter2.guild, f"🗑️ {inter2.user.mention} ha riconsegnato il kit **{nome}**.", discord.Color.from_rgb(255, 107, 53))
         v = discord.ui.View(timeout=60); v.add_item(TogliSel())
         await inter.response.send_message("Scegli il kit:", view=v, ephemeral=True)
 
@@ -6029,8 +6029,8 @@ async def armadietto_fdo_cmd(interaction: discord.Interaction):
     tot = len(armadietto_fdo)
     mspd = len(_kit_per_categoria("MSPD"))
     fbi  = len(_kit_per_categoria("FBI"))
-    embed = discord.Embed(title="🗃️ ARMADIETTO FDO", color=discord.Color.blue(), timestamp=datetime.now())
-    embed.set_author(name="Madison State — Forze dell'Ordine", icon_url=LOGO_SERVER)
+    embed = discord.Embed(title="🗃️ ARMADIETTO FDO", color=discord.Color.from_rgb(123, 47, 190), timestamp=datetime.now())
+    embed.set_author(name="Eclipse City RP — Forze dell'Ordine", icon_url=LOGO_SERVER)
     embed.description = (
         f"**Kit totali:** {tot}\n"
         f"🚔 MSPD: {mspd} kit\n"
@@ -6072,7 +6072,7 @@ async def inizia_raccolta(interaction: discord.Interaction):
             foto = self_m.foto_url.value.strip()
             dati = TIPI_RACCOLTA[tipo]
             raccolte_attive[uid] = {"tipo": tipo, "inizio": datetime.now(), "foto_url": foto}
-            embed = discord.Embed(color=discord.Color.green(), title=f"{dati['emoji']} Raccolta Avviata", timestamp=datetime.now())
+            embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140), title=f"{dati['emoji']} Raccolta Avviata", timestamp=datetime.now())
             embed.set_author(name=inter.user.display_name, icon_url=inter.user.display_avatar.url)
             embed.description = (
                 f"**Pianta:** {dati['nome']}\n"
@@ -6082,7 +6082,7 @@ async def inizia_raccolta(interaction: discord.Interaction):
             if foto.startswith("http"):
                 embed.set_image(url=foto)
             await inter.response.send_message(embed=embed)
-            await log_azione(inter.guild, inter.user, f"{dati['emoji']} Raccolta avviata", f"Tipo: {dati['nome']}", discord.Color.green())
+            await log_azione(inter.guild, inter.user, f"{dati['emoji']} Raccolta avviata", f"Tipo: {dati['nome']}", discord.Color.from_rgb(233, 30, 140))
 
     await interaction.response.send_modal(RaccoltaModal())
 
@@ -6100,7 +6100,7 @@ async def fine_raccolta(interaction: discord.Interaction):
     for _ in range(piante):
         inventari[uid].append(dati["item"])
     _salva_dati()
-    embed = discord.Embed(color=discord.Color.from_rgb(46, 204, 113), title=f"{dati['emoji']} Raccolta Completata", timestamp=datetime.now())
+    embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140), title=f"{dati['emoji']} Raccolta Completata", timestamp=datetime.now())
     embed.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
     embed.description = (
         f"**Pianta:** {dati['nome']}\n"
@@ -6108,7 +6108,7 @@ async def fine_raccolta(interaction: discord.Interaction):
         f"**Raccolte:** {piante}x {dati['item']} → aggiunte all'inventario"
     )
     await interaction.response.send_message(embed=embed)
-    await log_azione(interaction.guild, interaction.user, f"{dati['emoji']} Raccolta completata", f"{dati['nome']} x{piante} in {ore_lavorate:.1f}h", discord.Color.green())
+    await log_azione(interaction.guild, interaction.user, f"{dati['emoji']} Raccolta completata", f"{dati['nome']} x{piante} in {ore_lavorate:.1f}h", discord.Color.from_rgb(233, 30, 140))
 
 
 # ══════════════════════════════════════════════
@@ -6131,7 +6131,7 @@ async def nascondi_oggetto(interaction: discord.Interaction):
     conteggio = Counter(items)
     opzioni = [discord.SelectOption(label=f"{n} (x{q})"[:100], value=n) for n, q in list(conteggio.items())[:25]]
 
-    embed_sel = discord.Embed(color=discord.Color.orange(), timestamp=datetime.now())
+    embed_sel = discord.Embed(color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
     embed_sel.set_author(name="📦 NASCONDI OGGETTO", icon_url=LOGO_SERVER)
     embed_sel.description = (
         "Seleziona l'oggetto che vuoi nascondere dal menu qui sotto.\n"
@@ -6162,7 +6162,7 @@ async def nascondi_oggetto(interaction: discord.Interaction):
                     luogo_desc = sm.luogo.value.strip()
 
                     # Chiedi la foto come attachment nello step successivo
-                    embed_foto = discord.Embed(color=discord.Color.orange(), timestamp=datetime.now())
+                    embed_foto = discord.Embed(color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
                     embed_foto.set_author(name="📸 INVIA LA FOTO DEL POSTO", icon_url=LOGO_SERVER)
                     embed_foto.description = (
                         f"✅ Posto registrato: **{luogo_desc}**\n\n"
@@ -6222,7 +6222,7 @@ async def nascondi_foto(interaction: discord.Interaction, foto: discord.Attachme
     _salva_dati()
 
     embed = discord.Embed(
-        color=discord.Color.from_rgb(230, 126, 34),
+        color=discord.Color.from_rgb(255, 107, 53),
         title="📦 OGGETTO NASCOSTO",
         timestamp=datetime.now()
     )
@@ -6241,7 +6241,7 @@ async def nascondi_foto(interaction: discord.Interaction, foto: discord.Attachme
         interaction.guild, interaction.user,
         "📦 Oggetto nascosto",
         f"{oggetto} | Posto: {luogo_desc} | ID: {id_obj}",
-        discord.Color.orange()
+        discord.Color.from_rgb(255, 107, 53)
     )
 
 
@@ -6271,7 +6271,7 @@ async def prendi_oggetto(interaction: discord.Interaction, id_oggetto: str, foto
     _salva_dati()
 
     embed = discord.Embed(
-        color=discord.Color.from_rgb(39, 174, 96),
+        color=discord.Color.from_rgb(233, 30, 140),
         title="📦 OGGETTO RECUPERATO",
         timestamp=datetime.now()
     )
@@ -6291,7 +6291,7 @@ async def prendi_oggetto(interaction: discord.Interaction, id_oggetto: str, foto
         interaction.guild, interaction.user,
         "📦 Oggetto recuperato",
         f"{dati['oggetto']} | ID: {id_str} | Nascosto da: {dati['nascosto_da']}",
-        discord.Color.green()
+        discord.Color.from_rgb(233, 30, 140)
     )
 
 
@@ -6322,7 +6322,7 @@ def _build_revolut_embed(uid: int, member: discord.Member) -> discord.Embed:
     saldo_abs = abs(saldo)
     saldo_fmt = f"{saldo_abs:,}".replace(",", ".")
     segno = "-" if saldo < 0 else ""
-    colore = discord.Color.from_rgb(107, 53, 217) if saldo >= 0 else discord.Color.from_rgb(220, 50, 50)
+    colore = discord.Color.from_rgb(123, 47, 190) if saldo >= 0 else discord.Color.from_rgb(220, 50, 50)
 
     embed = discord.Embed(color=colore, timestamp=datetime.now())
     embed.set_author(name=member.display_name, icon_url=member.display_avatar.url)
@@ -6331,7 +6331,7 @@ def _build_revolut_embed(uid: int, member: discord.Member) -> discord.Embed:
     stato = "⚠️  SALDO NEGATIVO" if saldo < 0 else "✅  Conto attivo"
     embed.description = (
         f"```\n"
-        f"  Personale  ·  $ Madison Dollar\n"
+        f"  Personale  ·  $ Eclipse Dollar\n"
         f"```\n"
         f"# {segno}{saldo_fmt},00 $\n"
         f"-# {stato}\n\n"
@@ -6351,7 +6351,7 @@ def _build_revolut_embed(uid: int, member: discord.Member) -> discord.Embed:
             mov += f"{emoji}  **{t['tipo']}**{cp}\n> `{t['ts']}`　　`{segno_v}{imp_fmt} $`\n"
 
     embed.add_field(name="📋  Movimenti recenti", value=mov, inline=False)
-    embed.set_footer(text="Madison State Roleplay  ·  Pacific Bank  ·  Banca Privata", icon_url=LOGO_SERVER)
+    embed.set_footer(text="Eclipse City RP  ·  Pacific Bank  ·  Banca Privata", icon_url=LOGO_SERVER)
     return embed
 
 
@@ -6452,9 +6452,9 @@ class RevolutView(discord.ui.View):
                 try:
                     dest_member = i.guild.get_member(dest_uid)
                     if dest_member:
-                        em_notif = discord.Embed(color=discord.Color.from_rgb(107,53,217), title="💜 Hai ricevuto un bonifico!", timestamp=datetime.now())
+                        em_notif = discord.Embed(color=discord.Color.from_rgb(123, 47, 190), title="💜 Hai ricevuto un bonifico!", timestamp=datetime.now())
                         em_notif.description = f"**Da:** {i.user.mention}\n**Importo:** `+{val:,} $`\n**Causale:** {causale_txt}"
-                        em_notif.set_footer(text="Pacific Bank · Madison State RP")
+                        em_notif.set_footer(text="Pacific Bank · Eclipse City RP RP")
                         await dest_member.send(embed=em_notif)
                 except Exception:
                     pass
@@ -6468,17 +6468,17 @@ class RevolutView(discord.ui.View):
             return await inter.response.send_message("❌ Questo conto non è tuo.", ephemeral=True)
         uid2 = inter.user.id
         saldo2 = conti_bancari.get(uid2, 0)
-        embed = discord.Embed(color=discord.Color.from_rgb(107,53,217), title="🏛️ Coordinate conto", timestamp=datetime.now())
-        embed.set_author(name="Pacific Bank · Madison State", icon_url=LOGO_SERVER)
+        embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190), title="🏛️ Coordinate conto", timestamp=datetime.now())
+        embed.set_author(name="Pacific Bank · Eclipse City RP", icon_url=LOGO_SERVER)
         embed.description = (
             f"**Titolare ➢** {inter.user.mention}\n"
             f"**Banca ➢** Pacific Bank\n"
             f"**Tipo ➢** Conto corrente RP\n"
-            f"**Valuta ➢** $ Madison Dollar\n"
+            f"**Valuta ➢** $ Eclipse Dollar\n"
             f"**Saldo attuale ➢** `{saldo2:,} $`\n"
             f"**ID Conto ➢** `MS-{uid2}`"
         )
-        embed.set_footer(text="Madison State Roleplay · Banca Privata")
+        embed.set_footer(text="Eclipse City RP · Banca Privata")
         await inter.response.send_message(embed=embed, ephemeral=True)
 
     @discord.ui.button(label="👜  Preleva", style=discord.ButtonStyle.secondary, row=1)
@@ -6655,11 +6655,11 @@ async def finanziamento_cmd(interaction: discord.Interaction, cliente: discord.M
 
             # ── Embed riepilogo al direttore ──
             embed = discord.Embed(
-                color=discord.Color.from_rgb(52, 152, 219),
+                color=discord.Color.from_rgb(123, 47, 190),
                 title="🚗 FINANZIAMENTO CREATO",
                 timestamp=datetime.now()
             )
-            embed.set_author(name="Concessionario Madison State", icon_url=LOGO_SERVER)
+            embed.set_author(name="Concessionario Eclipse City", icon_url=LOGO_SERVER)
             embed.set_thumbnail(url=cliente.display_avatar.url)
             embed.description = (
                 f"**📋 ID Finanziamento ➢** `{fid}`\n\n"
@@ -6679,11 +6679,11 @@ async def finanziamento_cmd(interaction: discord.Interaction, cliente: discord.M
             # ── Notifica DM al cliente ──
             try:
                 embed_dm = discord.Embed(
-                    color=discord.Color.from_rgb(52, 152, 219),
+                    color=discord.Color.from_rgb(123, 47, 190),
                     title="🚗 HAI UN NUOVO FINANZIAMENTO",
                     timestamp=datetime.now()
                 )
-                embed_dm.set_author(name="Concessionario Madison State", icon_url=LOGO_SERVER)
+                embed_dm.set_author(name="Concessionario Eclipse City", icon_url=LOGO_SERVER)
                 embed_dm.description = (
                     f"**Ciao {sm.nome_ic.value.strip()}!**\n\n"
                     f"Il **Direttore del Concessionario** ha attivato un piano di finanziamento per te.\n\n"
@@ -6702,7 +6702,7 @@ async def finanziamento_cmd(interaction: discord.Interaction, cliente: discord.M
                 inter.guild, inter.user,
                 "🚗 Finanziamento creato",
                 f"Cliente: {cliente.mention} | IC: {sm.nome_ic.value.strip()} | Veicolo: {sm.veicolo.value.strip()} | ${costo:,} in {n_rate} rate | ID: {fid}",
-                discord.Color.blue()
+                discord.Color.from_rgb(123, 47, 190)
             )
 
     await interaction.response.send_modal(FinanziamentoModal())
@@ -6715,11 +6715,11 @@ async def finanziamenti_lista(interaction: discord.Interaction):
     lista_attivi = [f for f in lista if f["rate_pagate"] < f["rate_totali"]]
 
     embed = discord.Embed(
-        color=discord.Color.from_rgb(52, 152, 219),
+        color=discord.Color.from_rgb(123, 47, 190),
         title="📋 I TUOI FINANZIAMENTI",
         timestamp=datetime.now()
     )
-    embed.set_author(name="Concessionario Madison State", icon_url=LOGO_SERVER)
+    embed.set_author(name="Concessionario Eclipse City", icon_url=LOGO_SERVER)
     embed.set_thumbnail(url=interaction.user.display_avatar.url)
 
     if not lista_attivi:
@@ -6749,7 +6749,7 @@ async def paga_rata(interaction: discord.Interaction, id_finanziamento: str = No
     lista_attivi = [f for f in lista if f["rate_pagate"] < f["rate_totali"]]
 
     if not lista_attivi:
-        embed = discord.Embed(color=discord.Color.green())
+        embed = discord.Embed(color=discord.Color.from_rgb(233, 30, 140))
         embed.set_author(name="💳 PAGA RATA", icon_url=LOGO_SERVER)
         embed.description = "✅ Non hai finanziamenti attivi da pagare."
         return await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -6767,7 +6767,7 @@ async def paga_rata(interaction: discord.Interaction, id_finanziamento: str = No
                     f"**🔑 ID `{f['id']}`** — {f['veicolo']}\n"
                     f"┣ 💰 Rata: `${f['rata']:,}` | Rimanenti: `{rate_rimanenti}`\n\n"
                 )
-            embed = discord.Embed(color=discord.Color.blue(), title="📋 I TUOI FINANZIAMENTI", timestamp=datetime.now())
+            embed = discord.Embed(color=discord.Color.from_rgb(123, 47, 190), title="📋 I TUOI FINANZIAMENTI", timestamp=datetime.now())
             embed.set_author(name="💳 PAGA RATA", icon_url=LOGO_SERVER)
             embed.description = desc
             return await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -6786,11 +6786,11 @@ async def paga_rata(interaction: discord.Interaction, id_finanziamento: str = No
 
     # Embed conferma con bottoni
     embed_conf = discord.Embed(
-        color=discord.Color.from_rgb(52, 152, 219),
+        color=discord.Color.from_rgb(123, 47, 190),
         title="💳 CONFERMA PAGAMENTO RATA",
         timestamp=datetime.now()
     )
-    embed_conf.set_author(name="Concessionario Madison State", icon_url=LOGO_SERVER)
+    embed_conf.set_author(name="Concessionario Eclipse City", icon_url=LOGO_SERVER)
     saldo_str = f"`${saldo_conto:,}`" if saldo_conto >= 0 else f"⚠️ **`-${abs(saldo_conto):,}` (NEGATIVO)**"
     saldo_dopo = saldo_conto - importo
     saldo_dopo_str = f"`${saldo_dopo:,}`" if saldo_dopo >= 0 else f"⚠️ **`-${abs(saldo_dopo):,}` (andrà in negativo)**"
@@ -6850,11 +6850,11 @@ async def paga_rata(interaction: discord.Interaction, id_finanziamento: str = No
             for child in self.children: child.disabled = True
 
             embed_ok = discord.Embed(
-                color=discord.Color.green() if saldo_finale >= 0 else discord.Color.orange(),
+                color=discord.Color.from_rgb(233, 30, 140) if saldo_finale >= 0 else discord.Color.from_rgb(255, 107, 53),
                 title="✅ RATA PAGATA" if not completato else "🎉 FINANZIAMENTO SALDATO!",
                 timestamp=datetime.now()
             )
-            embed_ok.set_author(name="Concessionario Madison State", icon_url=LOGO_SERVER)
+            embed_ok.set_author(name="Concessionario Eclipse City", icon_url=LOGO_SERVER)
             embed_ok.description = (
                 f"**🚗 Veicolo ➢** {fin['veicolo']}\n"
                 f"**💰 Importo pagato ➢** `${self.importo:,}`\n"
@@ -6869,7 +6869,7 @@ async def paga_rata(interaction: discord.Interaction, id_finanziamento: str = No
                 inter.guild, inter.user,
                 "💳 Rata pagata manualmente",
                 f"Veicolo: {fin['veicolo']} | ID: {self.fid} | Importo: ${self.importo:,} | Rata {fin['rate_pagate']}/{fin['rate_totali']}",
-                discord.Color.green()
+                discord.Color.from_rgb(233, 30, 140)
             )
 
         @discord.ui.button(label="❌ ANNULLA", style=discord.ButtonStyle.red)
@@ -6893,11 +6893,11 @@ async def finanziamenti_tutti(interaction: discord.Interaction):
         return await interaction.response.send_message(embed=embed, ephemeral=True)
 
     embed = discord.Embed(
-        color=discord.Color.from_rgb(52, 152, 219),
+        color=discord.Color.from_rgb(123, 47, 190),
         title="📊 TUTTI I FINANZIAMENTI ATTIVI",
         timestamp=datetime.now()
     )
-    embed.set_author(name="Concessionario Madison State", icon_url=LOGO_SERVER)
+    embed.set_author(name="Concessionario Eclipse City", icon_url=LOGO_SERVER)
     totale_crediti = 0
     righe = []
     for uid_str, lista in finanziamenti_attivi.items():
@@ -6952,11 +6952,11 @@ async def annulla_finanziamento(interaction: discord.Interaction, id_finanziamen
         embed.description = f"❌ Finanziamento `{fid}` non trovato."
         return await interaction.response.send_message(embed=embed, ephemeral=True)
 
-    embed = discord.Embed(color=discord.Color.orange(), timestamp=datetime.now())
+    embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
     embed.set_author(name="❌ FINANZIAMENTO ANNULLATO", icon_url=LOGO_SERVER)
     embed.description = f"Il finanziamento **ID `{fid}`** è stato annullato con successo."
     await interaction.response.send_message(embed=embed, ephemeral=True)
-    await log_azione(interaction.guild, interaction.user, "❌ Finanziamento annullato", f"ID: {fid}", discord.Color.orange())
+    await log_azione(interaction.guild, interaction.user, "❌ Finanziamento annullato", f"ID: {fid}", discord.Color.from_rgb(255, 107, 53))
 
 
 # ── Task settimanale: ogni 7 giorni scala le rate automaticamente ──
@@ -7006,11 +7006,11 @@ async def pagamento_rate_task():
                     membro_discord = guild.get_member(uid_int)
                 if membro_discord:
                     embed_notifica = discord.Embed(
-                        color=discord.Color.green() if saldo_dopo >= 0 else discord.Color.red(),
+                        color=discord.Color.from_rgb(233, 30, 140) if saldo_dopo >= 0 else discord.Color.red(),
                         title="💳 RATA FINANZIAMENTO SCALATA",
                         timestamp=datetime.now()
                     )
-                    embed_notifica.set_author(name="Concessionario Madison State", icon_url=LOGO_SERVER)
+                    embed_notifica.set_author(name="Concessionario Eclipse City", icon_url=LOGO_SERVER)
                     embed_notifica.description = (
                         f"**🚗 Veicolo ➢** {f['veicolo']}\n"
                         f"**💰 Importo scalato ➢** `${importo:,}`\n"
@@ -7095,7 +7095,7 @@ for _in, _id in ISLA_MENU.items():
 
 def _isla_embed_home(user: discord.Member) -> discord.Embed:
     embed = discord.Embed(
-        color=discord.Color.from_rgb(212, 175, 55),
+        color=discord.Color.from_rgb(255, 200, 0),
         title="⚓ 👑 ISLA DE ORO | EL MENÚ DE GALA 👑 ⚓",
         timestamp=datetime.now()
     )
@@ -7122,7 +7122,7 @@ def _isla_embed_home(user: discord.Member) -> discord.Embed:
 
 def _isla_embed_categoria(cat: str, piatti: list, user: discord.Member) -> discord.Embed:
     embed = discord.Embed(
-        color=discord.Color.from_rgb(212, 175, 55),
+        color=discord.Color.from_rgb(255, 200, 0),
         title=f"⚓ {cat}",
         timestamp=datetime.now()
     )
@@ -7217,7 +7217,7 @@ class IslaAccettaView(discord.ui.View):
             child.disabled = True
 
         embed_ok = discord.Embed(
-            color=discord.Color.green(),
+            color=discord.Color.from_rgb(233, 30, 140),
             title="🍽️ PIATTO RICEVUTO!",
             timestamp=datetime.now()
         )
@@ -7233,7 +7233,7 @@ class IslaAccettaView(discord.ui.View):
         # Aggiorna il messaggio nel canale ordini
         try:
             embed_can = discord.Embed(
-                color=discord.Color.green(),
+                color=discord.Color.from_rgb(233, 30, 140),
                 title="✅ ORDINE ACCETTATO DAL CLIENTE",
                 timestamp=datetime.now()
             )
@@ -7279,7 +7279,7 @@ class IslaAccettaView(discord.ui.View):
             for child in self.children:
                 child.disabled = True
             try:
-                embed_to = discord.Embed(color=discord.Color.orange(), title="⏰ Tempo scaduto")
+                embed_to = discord.Embed(color=discord.Color.from_rgb(255, 107, 53), title="⏰ Tempo scaduto")
                 embed_to.description = f"Non hai risposto in tempo per **{self.piatto}**.\nContatta il cameriere."
                 await self.message.edit(embed=embed_to, view=self)
             except Exception:
@@ -7316,7 +7316,7 @@ class IslaConsegnaView(discord.ui.View):
         for child in self.children:
             child.disabled = True
         embed_attesa = discord.Embed(
-            color=discord.Color.from_rgb(212, 175, 55),
+            color=discord.Color.from_rgb(255, 200, 0),
             title="⏳ IN ATTESA CONFERMA CLIENTE",
             timestamp=datetime.now()
         )
@@ -7339,7 +7339,7 @@ class IslaConsegnaView(discord.ui.View):
         cliente_member = inter.guild.get_member(self.cliente_uid)
         if cliente_member:
             embed_dm = discord.Embed(
-                color=discord.Color.from_rgb(212, 175, 55),
+                color=discord.Color.from_rgb(255, 200, 0),
                 title="🍽️ IL TUO ORDINE È ARRIVATO!",
                 timestamp=datetime.now()
             )
@@ -7458,7 +7458,7 @@ class IslaConfermaModal(discord.ui.Modal, title="🍽️ Conferma Ordine"):
             _salva_dati()
 
         embed_ok = discord.Embed(
-            color=discord.Color.from_rgb(212, 175, 55),
+            color=discord.Color.from_rgb(255, 200, 0),
             title="⚓ ORDINE CONFERMATO — ISLA DE ORO",
             timestamp=datetime.now()
         )
@@ -7481,7 +7481,7 @@ class IslaConfermaModal(discord.ui.Modal, title="🍽️ Conferma Ordine"):
         canale_ordini = guild.get_channel(ISLA_CANALE_ORDINI_ID) if guild else None
         if canale_ordini:
             embed_ord = discord.Embed(
-                color=discord.Color.from_rgb(212, 175, 55),
+                color=discord.Color.from_rgb(255, 200, 0),
                 title="🔔 NUOVO ORDINE — ISLA DE ORO",
                 timestamp=datetime.now()
             )
@@ -7513,7 +7513,7 @@ class IslaConfermaModal(discord.ui.Modal, title="🍽️ Conferma Ordine"):
             guild, inter.user,
             "⚓ Ordine Isla de Oro",
             f"Piatto: **{piatto}** | ${prezzo:,} | Note: {note_txt}",
-            discord.Color.from_rgb(212, 175, 55)
+            discord.Color.from_rgb(255, 200, 0)
         )
 
 
@@ -8175,7 +8175,7 @@ async def backup_server(interaction: discord.Interaction, guild_id: str = None):
                 f"{riepilogo}\n\n"
                 f"🔑 Codice ripristino inviato in DM."
             ),
-            color=discord.Color.green(),
+            color=discord.Color.from_rgb(233, 30, 140),
             timestamp=datetime.now()
         )
         embed.set_footer(text=f"Richiesto da {interaction.user}", icon_url=interaction.user.display_avatar.url)
@@ -8288,7 +8288,7 @@ async def ripristina_server(interaction: discord.Interaction, codice: str, guild
             f"👑 Ruoli creati: **{ruoli_creati}**\n"
             f"📁 Canali creati: **{canali_creati}**"
         ),
-        color=discord.Color.blue(),
+        color=discord.Color.from_rgb(123, 47, 190),
         timestamp=datetime.now()
     )
     embed.set_footer(text=f"Richiesto da {interaction.user}", icon_url=interaction.user.display_avatar.url)
