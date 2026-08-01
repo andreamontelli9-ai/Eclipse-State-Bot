@@ -57,7 +57,7 @@ intents.reactions = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # --- 🖼️ GRAFICHE E LOGHI ---
-LOGO_SERVER = "https://cdn.discordapp.com/icons/1446478097494048783/cc5633dd92b5112c54663ffcb4f28b80.png?format=webp&quality=lossless&width=160&height=160" 
+LOGO_SERVER = "https://i.postimg.cc/hzfPFQCK/IMG-0236.webp"
 
 # --- 🗂️ STRUTTURA LAVORI E GRADI ---
 LAVORI_DUE_GRADI = [
