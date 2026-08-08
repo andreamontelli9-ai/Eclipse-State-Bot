@@ -1323,8 +1323,9 @@ CH_MODULO_BACKGROUND  = 1493322744547246181
 CH_CHAT_NO_WL         = 1493322740231569539
 CH_STATO_WHITELIST    = 1502360586166468838
 
-RUOLO_NON_WHITELISTATO_ID = 1494294044111667230
+RUOLO_NON_WHITELISTATO_ID = 1532126898682069093
 
+@bot.event
 @bot.event
 async def on_member_join(member: discord.Member):
     # Assegna SOLO il ruolo Non Whitelistato automaticamente
@@ -1850,20 +1851,19 @@ async def wl_passata(interaction: discord.Interaction, utente: discord.Member, e
 
     # ID ruoli da assegnare alla WL passata
     WL_RUOLI_IDS = [
-        1494294026298593290,  # Ruolo 1
-        1494294026998906914,  # Ruolo 2
-        1494294028089557134,  # Ruolo 3
-        1494294029288996939,  # Ruolo 4
-        1494294041674911785,  # Ruolo 5
-        1494294054610145313,  # Ruolo 6
-        1494294070300774410,  # Ruolo 7
-        1494294071387099267,  # Ruolo 8
-        1494294058649260122,  # Ruolo 9
+        1532126913630572564,  # Ruolo WL 1
+        1532126909939318926,  # Ruolo WL 2
+        1532126905967313007,  # Ruolo WL 3
+        1532126903060664411,  # Ruolo WL 4
+        1532126900787609692,  # Ruolo WL 5
+        1532126886900007032,  # Ruolo WL 6
+        1532126867489030295,  # Ruolo WL 7
+        1532126864192045066,  # Ruolo WL 8
     ]
 
     # ID ruoli da rimuovere alla WL passata
     WL_RUOLI_DA_RIMUOVERE = [
-        1494294044111667230,  # ❌ Non Whitelistato
+        1532126898682069093,  # ❌ Non Whitelistato
         1494294050319241356,  # ⏳ Attesa Background
     ]
 
