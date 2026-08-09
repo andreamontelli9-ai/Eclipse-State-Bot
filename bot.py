@@ -3119,7 +3119,7 @@ async def spaccia(interaction: discord.Interaction, tipo: app_commands.Choice[st
 @bot.tree.command(name="bdaperto", description="🟩 Apri i bandi della città")
 @is_staff_or_direttore()
 async def bdaperto(interaction: discord.Interaction):
-    img = "https://cdn.discordapp.com/attachments/1515862065384783914/1527503625868279849/file_00000000d32c71f497061f6d6d87c88d.png?ex=6a5e31dc&is=6a5ce05c&hm=d0d3ecd516bfe2e96dd18b550d8c77ab1e1fb3949f6e7255383a8f2580aa70e9&"
+    img = "https://cdn.discordapp.com/attachments/1532127388161544392/1534704553944027206/IMG_3349.png?ex=6a790cff&is=6a77bb7f&hm=cbc74dc1e122f8a3fc23979a681435cc426cb1d64b9795d3b5eb2fbc66ed61e5&"
     embed = discord.Embed(title="🟩 |BANDO APERTO", color=discord.Color.from_rgb(255, 107, 53))
     embed.set_image(url=img)
     
@@ -3129,7 +3129,7 @@ async def bdaperto(interaction: discord.Interaction):
 @bot.tree.command(name="bdchiuso", description="🛑 Chiudi i bandi della città")
 @is_staff_or_direttore()
 async def bdchiuso(interaction: discord.Interaction):
-    img_chiuso = "https://cdn.discordapp.com/attachments/1515862065384783914/1527503594037837944/file_0000000018c071f49afe4338dff3df03.png?ex=6a5e31d4&is=6a5ce054&hm=e6a72d3fb4cd018c00c5d3b9d742d73fb477598f9bfd18e04e190933d82fb875&"
+    img_chiuso = "https://cdn.discordapp.com/attachments/1532127388161544392/1534704553944027206/IMG_3349.png?ex=6a790cff&is=6a77bb7f&hm=cbc74dc1e122f8a3fc23979a681435cc426cb1d64b9795d3b5eb2fbc66ed61e5&"
     embed = discord.Embed(title="🟥 | BANDO CHIUSO", color=discord.Color.red())
     embed.set_image(url=img_chiuso)
     await interaction.response.send_message("✅ Bando chiuso inviato!", ephemeral=True)
