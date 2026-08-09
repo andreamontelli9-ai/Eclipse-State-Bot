@@ -5519,6 +5519,388 @@ async def supermarket(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed, view=SupermarketView(uid, is_direttore=is_dir))
 
 
+
+# ==========================================
+# 🏢 SISTEMA BANDI DI LAVORO
+# ==========================================
+
+CH_BANDI_CANDIDATURE  = 1535822509688234015  # canale dove arrivano le candidature
+CH_BANDI_ESITI        = 1532127581409640478  # canale dove arriva accettato/rifiutato
+
+LAVORI_EMOJI = {
+    "ammunation":    "🔫",
+    "dynasty8":      "🏠",
+    "concessionario":"🚗",
+    "polizia":       "👮",
+    "swat":          "🪖",
+    "banca":         "🏦",
+    "ems":           "🚑",
+    "msfd":          "🚒",
+    "avvocato":      "⚖️",
+    "giudice":       "🔨",
+    "minimarket":    "🛒",
+    "vanilla":       "🍸",
+    "meccanico":     "🔧",
+    "import_export": "📦",
+    "casino":        "🎰",
+    "pegasus":       "✈️",
+    "isla_de_oro":   "🍽️",
+}
+
+LAVORI_NOMI = {
+    "ammunation":    "Ammunation",
+    "dynasty8":      "Dynasty 8",
+    "concessionario":"Concessionario",
+    "polizia":       "Polizia",
+    "swat":          "S.W.A.T.",
+    "banca":         "Banca",
+    "ems":           "EMS",
+    "msfd":          "MSFD",
+    "avvocato":      "Avvocato",
+    "giudice":       "Giudice",
+    "minimarket":    "Minimarket",
+    "vanilla":       "Vanilla Unicorn",
+    "meccanico":     "Meccanico",
+    "import_export": "Import-Export",
+    "casino":        "Casino",
+    "pegasus":       "Pegasus",
+    "isla_de_oro":   "Isla De Oro",
+}
+
+# ─── MODALI ───────────────────────────────────────────────────────────────────
+
+class ModalBandoGenerico(discord.ui.Modal):
+    nome_cognome = discord.ui.TextInput(label="Nome e Cognome IC", placeholder="Es: Marco Rossi", required=True, max_length=50)
+    eta          = discord.ui.TextInput(label="Età IC", placeholder="Es: 28", required=True, max_length=3)
+    motivazione  = discord.ui.TextInput(label="Perché vuoi questo lavoro?", style=discord.TextStyle.paragraph, required=True, max_length=500)
+    esperienza   = discord.ui.TextInput(label="Hai esperienza precedente?", style=discord.TextStyle.paragraph, required=True, max_length=300)
+    disponibilita= discord.ui.TextInput(label="Disponibilità oraria", placeholder="Es: sera nei giorni feriali", required=True, max_length=100)
+
+    def __init__(self, lavoro_key: str):
+        self.lavoro_key = lavoro_key
+        super().__init__(title=f"📋 Candidatura — {LAVORI_NOMI[lavoro_key]}")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await _invia_candidatura(interaction, self.lavoro_key, {
+            "Nome e Cognome IC":       self.nome_cognome.value,
+            "Età IC":                  self.eta.value,
+            "Motivazione":             self.motivazione.value,
+            "Esperienza precedente":   self.esperienza.value,
+            "Disponibilità":           self.disponibilita.value,
+        })
+
+
+class ModalBandoForzeOrdine(discord.ui.Modal):
+    nome_cognome = discord.ui.TextInput(label="Nome e Cognome IC", placeholder="Es: Marco Rossi", required=True, max_length=50)
+    eta          = discord.ui.TextInput(label="Età IC", placeholder="Min. 21 anni IC", required=True, max_length=3)
+    motivazione  = discord.ui.TextInput(label="Perché vuoi servire la città?", style=discord.TextStyle.paragraph, required=True, max_length=500)
+    casellario   = discord.ui.TextInput(label="Hai precedenti penali IC?", placeholder="Sì/No — specificare", required=True, max_length=200)
+    situazione_fis= discord.ui.TextInput(label="Condizione fisica e mentale IC", style=discord.TextStyle.paragraph, required=True, max_length=300)
+
+    def __init__(self, lavoro_key: str):
+        self.lavoro_key = lavoro_key
+        super().__init__(title=f"📋 Candidatura — {LAVORI_NOMI[lavoro_key]}")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await _invia_candidatura(interaction, self.lavoro_key, {
+            "Nome e Cognome IC":     self.nome_cognome.value,
+            "Età IC":                self.eta.value,
+            "Motivazione":           self.motivazione.value,
+            "Precedenti penali IC":  self.casellario.value,
+            "Condizione fisica/mentale": self.situazione_fis.value,
+        })
+
+
+class ModalBandoLegge(discord.ui.Modal):
+    nome_cognome = discord.ui.TextInput(label="Nome e Cognome IC", placeholder="Es: Marco Rossi", required=True, max_length=50)
+    eta          = discord.ui.TextInput(label="Età IC", placeholder="Min. 25 anni IC", required=True, max_length=3)
+    titolo_studio= discord.ui.TextInput(label="Titolo di studio IC", placeholder="Es: Laurea in Giurisprudenza", required=True, max_length=100)
+    casi_trattati= discord.ui.TextInput(label="Casi o esperienze legali precedenti", style=discord.TextStyle.paragraph, required=True, max_length=500)
+    motivazione  = discord.ui.TextInput(label="Perché questa professione?", style=discord.TextStyle.paragraph, required=True, max_length=400)
+
+    def __init__(self, lavoro_key: str):
+        self.lavoro_key = lavoro_key
+        super().__init__(title=f"📋 Candidatura — {LAVORI_NOMI[lavoro_key]}")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await _invia_candidatura(interaction, self.lavoro_key, {
+            "Nome e Cognome IC":   self.nome_cognome.value,
+            "Età IC":              self.eta.value,
+            "Titolo di studio IC": self.titolo_studio.value,
+            "Esperienze legali":   self.casi_trattati.value,
+            "Motivazione":         self.motivazione.value,
+        })
+
+
+class ModalBandoMeccanico(discord.ui.Modal):
+    nome_cognome  = discord.ui.TextInput(label="Nome e Cognome IC", placeholder="Es: Marco Rossi", required=True, max_length=50)
+    eta           = discord.ui.TextInput(label="Età IC", placeholder="Es: 24", required=True, max_length=3)
+    specializzaz  = discord.ui.TextInput(label="Specializzazione (auto, moto, entrambi?)", placeholder="Es: auto sportive", required=True, max_length=100)
+    esperienza    = discord.ui.TextInput(label="Esperienza come meccanico IC", style=discord.TextStyle.paragraph, required=True, max_length=400)
+    motivazione   = discord.ui.TextInput(label="Perché vuoi lavorare qui?", style=discord.TextStyle.paragraph, required=True, max_length=300)
+
+    def __init__(self):
+        super().__init__(title="📋 Candidatura — Meccanico")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await _invia_candidatura(interaction, "meccanico", {
+            "Nome e Cognome IC":   self.nome_cognome.value,
+            "Età IC":              self.eta.value,
+            "Specializzazione":    self.specializzaz.value,
+            "Esperienza IC":       self.esperienza.value,
+            "Motivazione":         self.motivazione.value,
+        })
+
+
+class ModalBandoCasino(discord.ui.Modal):
+    nome_cognome = discord.ui.TextInput(label="Nome e Cognome IC", placeholder="Es: Marco Rossi", required=True, max_length=50)
+    eta          = discord.ui.TextInput(label="Età IC", placeholder="Min. 21 anni IC", required=True, max_length=3)
+    ruolo_desid  = discord.ui.TextInput(label="Ruolo desiderato", placeholder="Es: Croupier, Barman, Sicurezza", required=True, max_length=100)
+    esperienza   = discord.ui.TextInput(label="Esperienza nel settore", style=discord.TextStyle.paragraph, required=True, max_length=400)
+    gestione_conf= discord.ui.TextInput(label="Come gestiresti un cliente problematico?", style=discord.TextStyle.paragraph, required=True, max_length=300)
+
+    def __init__(self):
+        super().__init__(title="📋 Candidatura — Casino")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await _invia_candidatura(interaction, "casino", {
+            "Nome e Cognome IC":    self.nome_cognome.value,
+            "Età IC":               self.eta.value,
+            "Ruolo desiderato":     self.ruolo_desid.value,
+            "Esperienza":           self.esperienza.value,
+            "Gestione conflitti":   self.gestione_conf.value,
+        })
+
+
+class ModalBandoPegasus(discord.ui.Modal):
+    nome_cognome  = discord.ui.TextInput(label="Nome e Cognome IC", placeholder="Es: Marco Rossi", required=True, max_length=50)
+    eta           = discord.ui.TextInput(label="Età IC", placeholder="Min. 23 anni IC", required=True, max_length=3)
+    licenze       = discord.ui.TextInput(label="Licenze di volo/nautica IC possedute", placeholder="Es: Licenza pilota civile", required=True, max_length=200)
+    esperienza    = discord.ui.TextInput(label="Ore di volo/navigazione IC", style=discord.TextStyle.paragraph, required=True, max_length=300)
+    motivazione   = discord.ui.TextInput(label="Perché vuoi lavorare per Pegasus?", style=discord.TextStyle.paragraph, required=True, max_length=300)
+
+    def __init__(self):
+        super().__init__(title="📋 Candidatura — Pegasus")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await _invia_candidatura(interaction, "pegasus", {
+            "Nome e Cognome IC":  self.nome_cognome.value,
+            "Età IC":             self.eta.value,
+            "Licenze IC":         self.licenze.value,
+            "Esperienza di volo": self.esperienza.value,
+            "Motivazione":        self.motivazione.value,
+        })
+
+
+class ModalBandoRistorante(discord.ui.Modal):
+    nome_cognome = discord.ui.TextInput(label="Nome e Cognome IC", placeholder="Es: Marco Rossi", required=True, max_length=50)
+    eta          = discord.ui.TextInput(label="Età IC", placeholder="Es: 22", required=True, max_length=3)
+    ruolo_desid  = discord.ui.TextInput(label="Ruolo desiderato", placeholder="Es: Chef, Cameriere, Barman", required=True, max_length=100)
+    esperienza   = discord.ui.TextInput(label="Esperienza nella ristorazione", style=discord.TextStyle.paragraph, required=True, max_length=400)
+    piatto_firma = discord.ui.TextInput(label="Descrivimi un piatto che sapresti fare IC", style=discord.TextStyle.paragraph, required=True, max_length=300)
+
+    def __init__(self, lavoro_key: str):
+        self.lavoro_key = lavoro_key
+        super().__init__(title=f"📋 Candidatura — {LAVORI_NOMI[lavoro_key]}")
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await _invia_candidatura(interaction, self.lavoro_key, {
+            "Nome e Cognome IC":  self.nome_cognome.value,
+            "Età IC":             self.eta.value,
+            "Ruolo desiderato":   self.ruolo_desid.value,
+            "Esperienza":         self.esperienza.value,
+            "Piatto firma IC":    self.piatto_firma.value,
+        })
+
+
+# ─── FUNZIONE INVIO CANDIDATURA ───────────────────────────────────────────────
+
+async def _invia_candidatura(interaction: discord.Interaction, lavoro_key: str, campi: dict):
+    emoji = LAVORI_EMOJI.get(lavoro_key, "📋")
+    nome  = LAVORI_NOMI.get(lavoro_key, lavoro_key)
+
+    embed = discord.Embed(
+        title=f"{emoji} CANDIDATURA — {nome.upper()}",
+        color=discord.Color.from_rgb(255, 107, 53),
+        timestamp=datetime.now()
+    )
+    embed.set_thumbnail(url=LOGO_SERVER)
+    embed.set_author(name=f"{interaction.user.display_name} ({interaction.user})", icon_url=interaction.user.display_avatar.url)
+
+    for label, valore in campi.items():
+        embed.add_field(name=label, value=valore, inline=False)
+
+    embed.set_footer(text=f"ID candidato: {interaction.user.id}")
+
+    canale = interaction.guild.get_channel(CH_BANDI_CANDIDATURE)
+    if canale:
+        view = ViewEsitoBando(interaction.user.id, lavoro_key)
+        await canale.send(embed=embed, view=view)
+
+    await interaction.response.send_message(
+        f"✅ **Candidatura inviata con successo!**\nAttendi una risposta dallo staff per **{nome}**.",
+        ephemeral=True
+    )
+
+
+# ─── VIEW ESITO (Accetta/Rifiuta) ─────────────────────────────────────────────
+
+class ViewEsitoBando(discord.ui.View):
+    def __init__(self, candidato_id: int, lavoro_key: str):
+        super().__init__(timeout=None)
+        self.candidato_id = candidato_id
+        self.lavoro_key   = lavoro_key
+
+    @discord.ui.button(label="✅ Accetta", style=discord.ButtonStyle.success, custom_id="bando_accetta")
+    async def accetta(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not any(r.name.lower() in ["staff", "admin", "developer", "direttore"] for r in interaction.user.roles):
+            return await interaction.response.send_message("❌ Non hai i permessi.", ephemeral=True)
+        nome  = LAVORI_NOMI.get(self.lavoro_key, self.lavoro_key)
+        emoji = LAVORI_EMOJI.get(self.lavoro_key, "📋")
+        canale_esiti = interaction.guild.get_channel(CH_BANDI_ESITI)
+        candidato = interaction.guild.get_member(self.candidato_id)
+        embed = discord.Embed(
+            title=f"✅ CANDIDATURA ACCETTATA — {nome.upper()}",
+            color=discord.Color.from_rgb(255, 107, 53),
+            timestamp=datetime.now()
+        )
+        embed.set_thumbnail(url=LOGO_SERVER)
+        embed.add_field(name="Candidato", value=candidato.mention if candidato else f"ID: {self.candidato_id}", inline=True)
+        embed.add_field(name="Lavoro", value=f"{emoji} {nome}", inline=True)
+        embed.add_field(name="Approvato da", value=interaction.user.mention, inline=True)
+        if canale_esiti:
+            await canale_esiti.send(embed=embed)
+        if candidato:
+            try:
+                dm_embed = discord.Embed(
+                    title=f"✅ Candidatura Accettata — {nome}",
+                    description=f"Congratulazioni! La tua candidatura per **{emoji} {nome}** su **Eclipse City RP** è stata **accettata**.\nContatta lo staff per ulteriori informazioni.",
+                    color=discord.Color.from_rgb(255, 107, 53)
+                )
+                dm_embed.set_thumbnail(url=LOGO_SERVER)
+                await candidato.send(embed=dm_embed)
+            except Exception:
+                pass
+        for child in self.children:
+            child.disabled = True
+        await interaction.message.edit(view=self)
+        await interaction.response.send_message(f"✅ Candidatura di {candidato.mention if candidato else self.candidato_id} accettata.", ephemeral=True)
+
+    @discord.ui.button(label="❌ Rifiuta", style=discord.ButtonStyle.danger, custom_id="bando_rifiuta")
+    async def rifiuta(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not any(r.name.lower() in ["staff", "admin", "developer", "direttore"] for r in interaction.user.roles):
+            return await interaction.response.send_message("❌ Non hai i permessi.", ephemeral=True)
+        nome  = LAVORI_NOMI.get(self.lavoro_key, self.lavoro_key)
+        emoji = LAVORI_EMOJI.get(self.lavoro_key, "📋")
+        canale_esiti = interaction.guild.get_channel(CH_BANDI_ESITI)
+        candidato = interaction.guild.get_member(self.candidato_id)
+        embed = discord.Embed(
+            title=f"❌ CANDIDATURA RIFIUTATA — {nome.upper()}",
+            color=discord.Color.red(),
+            timestamp=datetime.now()
+        )
+        embed.set_thumbnail(url=LOGO_SERVER)
+        embed.add_field(name="Candidato", value=candidato.mention if candidato else f"ID: {self.candidato_id}", inline=True)
+        embed.add_field(name="Lavoro", value=f"{emoji} {nome}", inline=True)
+        embed.add_field(name="Rifiutato da", value=interaction.user.mention, inline=True)
+        if canale_esiti:
+            await canale_esiti.send(embed=embed)
+        if candidato:
+            try:
+                dm_embed = discord.Embed(
+                    title=f"❌ Candidatura Rifiutata — {nome}",
+                    description=f"Purtroppo la tua candidatura per **{emoji} {nome}** su **Eclipse City RP** è stata **rifiutata**.\nPuoi riprovare in futuro!",
+                    color=discord.Color.red()
+                )
+                dm_embed.set_thumbnail(url=LOGO_SERVER)
+                await candidato.send(embed=dm_embed)
+            except Exception:
+                pass
+        for child in self.children:
+            child.disabled = True
+        await interaction.message.edit(view=self)
+        await interaction.response.send_message(f"❌ Candidatura di {candidato.mention if candidato else self.candidato_id} rifiutata.", ephemeral=True)
+
+
+# ─── SELECT MENU MODULO ───────────────────────────────────────────────────────
+
+class SelectBando(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label="Ammunation",       value="ammunation",    emoji="🔫", description="Negozio di armi"),
+            discord.SelectOption(label="Dynasty 8",        value="dynasty8",      emoji="🏠", description="Agenzia immobiliare"),
+            discord.SelectOption(label="Concessionario",   value="concessionario",emoji="🚗", description="Vendita veicoli"),
+            discord.SelectOption(label="Polizia",          value="polizia",       emoji="👮", description="Forze dell'ordine"),
+            discord.SelectOption(label="S.W.A.T.",         value="swat",          emoji="🪖", description="Unità speciale"),
+            discord.SelectOption(label="Banca",            value="banca",         emoji="🏦", description="Istituto bancario"),
+            discord.SelectOption(label="EMS",              value="ems",           emoji="🚑", description="Servizio medico"),
+            discord.SelectOption(label="MSFD",             value="msfd",          emoji="🚒", description="Vigili del fuoco"),
+            discord.SelectOption(label="Avvocato",         value="avvocato",      emoji="⚖️", description="Studio legale"),
+            discord.SelectOption(label="Giudice",          value="giudice",       emoji="🔨", description="Tribunale"),
+            discord.SelectOption(label="Minimarket",       value="minimarket",    emoji="🛒", description="Negozio alimentari"),
+            discord.SelectOption(label="Vanilla Unicorn",  value="vanilla",       emoji="🍸", description="Locale notturno"),
+            discord.SelectOption(label="Meccanico",        value="meccanico",     emoji="🔧", description="Officina"),
+            discord.SelectOption(label="Import-Export",    value="import_export", emoji="📦", description="Commercio internazionale"),
+            discord.SelectOption(label="Casino",           value="casino",        emoji="🎰", description="Casa da gioco"),
+            discord.SelectOption(label="Pegasus",          value="pegasus",       emoji="✈️", description="Trasporti aerei e nautici"),
+            discord.SelectOption(label="Isla De Oro",      value="isla_de_oro",   emoji="🍽️", description="Ristorante di lusso"),
+        ]
+        super().__init__(placeholder="🏢 Seleziona il lavoro per cui candidarti...", min_values=1, max_values=1, options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        lavoro = self.values[0]
+        if lavoro in ("polizia", "swat"):
+            modal = ModalBandoForzeOrdine(lavoro)
+        elif lavoro in ("avvocato", "giudice"):
+            modal = ModalBandoLegge(lavoro)
+        elif lavoro == "meccanico":
+            modal = ModalBandoMeccanico()
+        elif lavoro == "casino":
+            modal = ModalBandoCasino()
+        elif lavoro == "pegasus":
+            modal = ModalBandoPegasus()
+        elif lavoro in ("vanilla", "isla_de_oro"):
+            modal = ModalBandoRistorante(lavoro)
+        else:
+            modal = ModalBandoGenerico(lavoro)
+        await interaction.response.send_modal(modal)
+
+
+class ViewBandi(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(SelectBando())
+
+
+# ─── COMANDO /bandi ────────────────────────────────────────────────────────────
+
+@bot.tree.command(name="bandi", description="📋 Pubblica il pannello bandi di lavoro (Solo Staff)")
+@is_staff_or_direttore()
+async def bandi_cmd(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="🏢 | BANDI DI LAVORO — ECLIPSE CITY RP",
+        color=discord.Color.from_rgb(255, 107, 53),
+        timestamp=datetime.now()
+    )
+    embed.set_thumbnail(url=LOGO_SERVER)
+    embed.description = (
+        "➢ **Benvenuto nel portale bandi di lavoro di Eclipse City RP!**\n\n"
+        "Seleziona il lavoro per cui vuoi candidarti dal menu qui sotto.\n"
+        "Compila il modulo con cura — lo staff valuterà la tua candidatura e riceverai una risposta in DM.\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "🔫 Ammunation  ·  🏠 Dynasty 8  ·  🚗 Concessionario\n"
+        "👮 Polizia  ·  🪖 S.W.A.T.  ·  🏦 Banca\n"
+        "🚑 EMS  ·  🚒 MSFD  ·  ⚖️ Avvocato  ·  🔨 Giudice\n"
+        "🛒 Minimarket  ·  🍸 Vanilla Unicorn  ·  🔧 Meccanico\n"
+        "📦 Import-Export  ·  🎰 Casino  ·  ✈️ Pegasus  ·  🍽️ Isla De Oro\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━"
+    )
+    embed.set_footer(text="Eclipse City RP — Portale Lavori")
+    await interaction.channel.send(embed=embed, view=ViewBandi())
+    await interaction.response.send_message("✅ Pannello bandi pubblicato.", ephemeral=True)
+
+
+
 # --- COMANDI PREFIX FALLBACK (funzionano subito senza sync) ---
 
 @bot.command(name="dormi")
@@ -8433,6 +8815,7 @@ async def on_ready():
     bot.add_view(ViewSondaggioPulsanti())
     bot.add_view(ViewPannelloBg())
     bot.add_view(TicketPanelView())
+    bot.add_view(ViewBandi())
 
 
 # --- AVVIO DEL BOT ---
