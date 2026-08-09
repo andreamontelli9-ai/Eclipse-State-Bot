@@ -1310,7 +1310,7 @@ async def rifiuta_background(interaction: discord.Interaction, utente: discord.M
 # ==========================================
 
 # 🔴 INSERISCI QUI L'ID DEL CANALE BENVENUTI DEL TUO SERVER
-CANALE_BENVENUTO_ID = 1493322694026985794  # Atterraggi
+CANALE_BENVENUTO_ID = 1532127042848424026  # Benvenuto Eclipse City
 # 🔴 INSERISCI QUI L'ID DEL CANALE ARRIVEDERCI DEL TUO SERVER
 CANALE_ADDIO_ID = 1493322697910784122    # Partenze
 
@@ -1353,17 +1353,15 @@ async def on_member_join(member: discord.Member):
 
     embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
     embed.description = (
-        f"👋 Benvenuto {member.mention} 😈 , inizia leggendo la "
-        f"<#{CH_INFO_GUIDA_WL}> e successivamente compila il "
-        f"<#{CH_MODULO_BACKGROUND}> . "
-        f"Una volta pronti richiedete la wl su <#{CH_CHAT_NO_WL}> , "
-        f"oppure aspettate la comunicazione su <#{CH_STATO_WHITELIST}> ."
+        f'✈️ **"Allacciate le cinture"** ✈️\n'
+        f'{member.mention} è in città! 👋\n\n'
+        '🫵  *Il tuo volo è appena atterrato a Eclipse City* 🌆\n'
+        '🔥  *Che tu sia qui per scalare i vertici del crimine, fondare un\'azienda o semplicemente goderti la vita, la tua storia inizia adesso* 💫\n\n'
+        '➢ ✍️ *Compila il* https://discord.com/channels/1532113882775163023/1532127154987339867\n'
+        '➢  📜 *Studia i regolamenti e richiedi qui la tua WL* https://discord.com/channels/1532113882775163023/1532127148738085111\n\n'
+        '<:emoji_1:1532539761477029958> **Buon RP e buona permanenza! 🚀**'
     )
-    embed.set_author(
-        name=f"🛫 | BENVENUTO <@{member.id}> SU ECLIPSE CITY RP",
-        icon_url=member.guild.icon.url if member.guild.icon else None
-    )
-    embed.set_image(url=BANNER_BENVENUTO)
+    embed.set_image(url="https://cdn.discordapp.com/attachments/1532127042848424026/1535800260461600929/Blue_and_Cream_Illustrative_Police_Instagram_Story_-_1.png?ex=6a7914f3&is=6a77c373&hm=68ef6d5ed209318f6ce8c3991dab86de7d765d20894bab6374acd12c4d57eb75&")
     embed.set_thumbnail(url=member.display_avatar.url)
 
     await canale.send(embed=embed)
