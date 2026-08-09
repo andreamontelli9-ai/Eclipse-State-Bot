@@ -1080,8 +1080,15 @@ class ViewSondaggioPulsanti(discord.ui.View):
         await interaction.delete_original_response()
 
 # --- Modulo e Tasto per Inviare il Background ---
-CH_ESITI_BACKGROUND = 1493322801191325749
-CH_LOG_AZIONI = 1493322828341051432  # 📋 Canale log azioni utenti
+CH_ESITI_BACKGROUND  = 1532127242048503868  # log background
+CH_LOG_TICKET        = 1532127245215207624  # log ticket
+CH_LOG_ECONOMIA      = 1532127253469724873  # log spese soldi
+CH_LOG_MESSAGGI      = 1532127256271388733  # log messaggi
+CH_LOG_ENTRATE       = 1532127259320651927  # log entrate server
+CH_LOG_CANALI        = 1532127262139351150  # log crea/elimina canali
+CH_LOG_RUOLI         = 1532127264420921417  # log ruoli
+CH_LOG_VOCALI        = 1532127267512389743  # log vocali
+CH_LOG_AZIONI        = 1532127256271388733  # log azioni generali (messaggi)
 
 class ModalBg1(discord.ui.Modal, title="📋 Background Personaggio"):
     nome = discord.ui.TextInput(
@@ -1233,7 +1240,7 @@ class TicketPanelView(discord.ui.View):
         await channel.send(content=interaction.user.mention, embed=embed)
 
         # Log ticket nel canale dedicato
-        log_ch = guild.get_channel(1493698945640304711)
+        log_ch = guild.get_channel(CH_LOG_TICKET)
         if log_ch:
             log_embed = discord.Embed(title="🎫 | TICKET CREATO", color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
             log_embed.add_field(name="Pannello", value=f">>> Ticket {tipo}", inline=False)
@@ -8294,6 +8301,116 @@ async def ripristina_server(interaction: discord.Interaction, codice: str, guild
 
 
 # --- AVVIO DEL BOT ---
+
+
+@bot.event
+async def on_message_delete(message):
+    if message.author.bot:
+        return
+    ch = message.guild.get_channel(CH_LOG_MESSAGGI) if message.guild else None
+    if not ch:
+        return
+    embed = discord.Embed(title="🗑️ Messaggio eliminato", color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
+    embed.add_field(name="Utente", value=message.author.mention, inline=True)
+    embed.add_field(name="Canale", value=message.channel.mention, inline=True)
+    embed.add_field(name="Contenuto", value=message.content[:1024] if message.content else "*[allegato/embed]*", inline=False)
+    embed.set_footer(text=f"ID: {message.author.id}")
+    await ch.send(embed=embed)
+
+@bot.event
+async def on_message_edit(before, after):
+    if before.author.bot or before.content == after.content:
+        return
+    ch = before.guild.get_channel(CH_LOG_MESSAGGI) if before.guild else None
+    if not ch:
+        return
+    embed = discord.Embed(title="✏️ Messaggio modificato", color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
+    embed.add_field(name="Utente", value=before.author.mention, inline=True)
+    embed.add_field(name="Canale", value=before.channel.mention, inline=True)
+    embed.add_field(name="Prima", value=before.content[:512] if before.content else "*vuoto*", inline=False)
+    embed.add_field(name="Dopo", value=after.content[:512] if after.content else "*vuoto*", inline=False)
+    embed.set_footer(text=f"ID: {before.author.id}")
+    await ch.send(embed=embed)
+
+@bot.event
+async def on_guild_channel_create(channel):
+    ch = channel.guild.get_channel(CH_LOG_CANALI)
+    if not ch:
+        return
+    embed = discord.Embed(title="✅ Canale creato", color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
+    embed.add_field(name="Nome", value=channel.mention, inline=True)
+    embed.add_field(name="Tipo", value=str(channel.type), inline=True)
+    await ch.send(embed=embed)
+
+@bot.event
+async def on_guild_channel_delete(channel):
+    ch = channel.guild.get_channel(CH_LOG_CANALI)
+    if not ch:
+        return
+    embed = discord.Embed(title="❌ Canale eliminato", color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
+    embed.add_field(name="Nome", value=f"#{channel.name}", inline=True)
+    embed.add_field(name="Tipo", value=str(channel.type), inline=True)
+    await ch.send(embed=embed)
+
+@bot.event
+async def on_guild_role_create(role):
+    ch = role.guild.get_channel(CH_LOG_RUOLI)
+    if not ch:
+        return
+    embed = discord.Embed(title="✅ Ruolo creato", color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
+    embed.add_field(name="Ruolo", value=role.mention, inline=True)
+    await ch.send(embed=embed)
+
+@bot.event
+async def on_guild_role_delete(role):
+    ch = role.guild.get_channel(CH_LOG_RUOLI)
+    if not ch:
+        return
+    embed = discord.Embed(title="❌ Ruolo eliminato", color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
+    embed.add_field(name="Nome", value=role.name, inline=True)
+    await ch.send(embed=embed)
+
+@bot.event
+async def on_member_update(before, after):
+    if before.roles == after.roles:
+        return
+    ch = after.guild.get_channel(CH_LOG_RUOLI)
+    if not ch:
+        return
+    aggiunti = [r for r in after.roles if r not in before.roles]
+    rimossi  = [r for r in before.roles if r not in after.roles]
+    if not aggiunti and not rimossi:
+        return
+    embed = discord.Embed(title="🔄 Ruoli aggiornati", color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
+    embed.add_field(name="Membro", value=after.mention, inline=False)
+    if aggiunti:
+        embed.add_field(name="✅ Aggiunti", value=" ".join(r.mention for r in aggiunti), inline=True)
+    if rimossi:
+        embed.add_field(name="❌ Rimossi", value=" ".join(r.mention for r in rimossi), inline=True)
+    await ch.send(embed=embed)
+
+@bot.event
+async def on_voice_state_update(member, before, after):
+    ch = member.guild.get_channel(CH_LOG_VOCALI)
+    if not ch:
+        return
+    if before.channel == after.channel:
+        return
+    embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
+    if before.channel is None:
+        embed.title = "🔊 Entrato in vocale"
+        embed.add_field(name="Membro", value=member.mention, inline=True)
+        embed.add_field(name="Canale", value=after.channel.name, inline=True)
+    elif after.channel is None:
+        embed.title = "🔇 Uscito da vocale"
+        embed.add_field(name="Membro", value=member.mention, inline=True)
+        embed.add_field(name="Canale", value=before.channel.name, inline=True)
+    else:
+        embed.title = "🔀 Cambiato canale vocale"
+        embed.add_field(name="Membro", value=member.mention, inline=True)
+        embed.add_field(name="Da", value=before.channel.name, inline=True)
+        embed.add_field(name="A", value=after.channel.name, inline=True)
+    await ch.send(embed=embed)
 
 @bot.event
 async def on_ready():
