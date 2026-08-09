@@ -1581,7 +1581,7 @@ async def ticket_cmd(interaction: discord.Interaction):
         "➢ **Benvenuto nella chat Ticket!**\n"
         "➢ *Clicca uno dei bottoni qui sotto per aprire un ticket in base alla propria esigenza.*"
     )
-    embed.set_image(url="https://cdn.discordapp.com/attachments/1511776402628808804/1512448461281300582/file_000000007fec720a83e3d1379da02ce6.png?ex=6a4bade5&is=6a4a5c65&hm=c70c2ab5cf31d14910db3e847575fad0eaf8c67db18692d3ec1b92983dcfcfe4&")
+    embed.set_image(url="https://cdn.discordapp.com/attachments/1532127388161544392/1534704553944027206/IMG_3349.png?ex=6a790cff&is=6a77bb7f&hm=cbc74dc1e122f8a3fc23979a681435cc426cb1d64b9795d3b5eb2fbc66ed61e5&")
     
     await interaction.channel.send(embed=embed, view=TicketPanelView())
     await interaction.response.send_message("✅ Pannello Ticket creato con successo.", ephemeral=True)
