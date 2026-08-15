@@ -5879,58 +5879,93 @@ def _ha_ruolo_bandi(interaction: discord.Interaction) -> bool:
 
 # ─── MODAL: STEP 1 — Informazioni del bando (titolo + 7 domande) ──────────────
 
-class ModalCreaBando(discord.ui.Modal, title="📝 Crea Nuovo Bando"):
+# ─── MODAL STEP 1: titolo + descrizione + domande (separate in due step) ──────
+# Discord limita i Modal a 5 campi. Usiamo 2 modal in sequenza:
+#   Step 1 → titolo, descrizione, domande 1-3
+#   Step 2 → domande 4-5 (opzionali) + conferma
+# Per semplicità e affidabilità usiamo UN solo modal con:
+#   campo1 = titolo, campo2 = descrizione, campi 3-5 = domande (3 domande nel modal)
+# Le domande extra le chiediamo separatamente con un secondo modal.
+
+class ModalCreaBandoStep2(discord.ui.Modal, title="📝 Crea Bando — Domande 4-5"):
+    domanda4 = discord.ui.TextInput(
+        label="Domanda 4 (opzionale)",
+        placeholder="Es: Disponibilità oraria",
+        required=False, max_length=100
+    )
+    domanda5 = discord.ui.TextInput(
+        label="Domanda 5 (opzionale)",
+        placeholder="Es: Hai precedenti penali IC?",
+        required=False, max_length=100
+    )
+
+    def __init__(self, titolo: str, descrizione: str, domande_base: list):
+        super().__init__()
+        self._titolo = titolo
+        self._descrizione = descrizione
+        self._domande_base = domande_base
+
+    async def on_submit(self, interaction: discord.Interaction):
+        domande = list(self._domande_base)
+        if self.domanda4.value.strip():
+            domande.append(self.domanda4.value.strip())
+        if self.domanda5.value.strip():
+            domande.append(self.domanda5.value.strip())
+
+        key = self._titolo.lower().replace(" ", "_")[:40]
+        bandi_personalizzati[key] = {
+            "titolo":      self._titolo,
+            "descrizione": self._descrizione,
+            "domande":     domande,
+        }
+        await interaction.response.send_message(
+            f"✅ **Bando `{self._titolo}` creato con successo!**\n"
+            f"Domande impostate:\n" +
+            "\n".join(f"`{i+1}.` {d}" for i, d in enumerate(domande)) +
+            "\n\nUsa `/bandi` per pubblicare il pannello aggiornato.",
+            ephemeral=True
+        )
+
+
+class ModalCreaBando(discord.ui.Modal, title="📝 Crea Bando — Info + Dom. 1-3"):
     titolo_bando = discord.ui.TextInput(
         label="Titolo del bando",
         placeholder="Es: Bando Vigili Urbani",
         required=True, max_length=80
     )
     descrizione_bando = discord.ui.TextInput(
-        label="Descrizione breve del bando",
+        label="Descrizione breve",
         style=discord.TextStyle.paragraph,
         placeholder="Es: Siamo alla ricerca di candidati per...",
         required=True, max_length=300
     )
-    domande_raw = discord.ui.TextInput(
-        label="7 Domande (una per riga)",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Nome e Cognome IC\n"
-            "Età IC\n"
-            "Motivazione\n"
-            "Esperienza precedente\n"
-            "Disponibilità oraria\n"
-            "Precedenti penali IC (Sì/No)\n"
-            "Perché sei adatto a questo ruolo?"
-        ),
-        required=True, max_length=1000
+    domanda1 = discord.ui.TextInput(
+        label="Domanda 1",
+        placeholder="Es: Nome e Cognome IC",
+        required=True, max_length=100
+    )
+    domanda2 = discord.ui.TextInput(
+        label="Domanda 2",
+        placeholder="Es: Età IC",
+        required=True, max_length=100
+    )
+    domanda3 = discord.ui.TextInput(
+        label="Domanda 3",
+        placeholder="Es: Motivazione",
+        required=True, max_length=100
     )
 
     async def on_submit(self, interaction: discord.Interaction):
-        righe = [r.strip() for r in self.domande_raw.value.strip().splitlines() if r.strip()]
-        if len(righe) < 1:
-            return await interaction.response.send_message(
-                "❌ Inserisci almeno 1 domanda.", ephemeral=True
-            )
-        # Limita a 5 domande perché Discord Modal supporta max 5 campi
-        domande = righe[:5]
-        titolo   = self.titolo_bando.value.strip()
-        desc     = self.descrizione_bando.value.strip()
-        key      = titolo.lower().replace(" ", "_")[:40]
-
-        # Salva il bando in memoria
-        bandi_personalizzati[key] = {
-            "titolo":     titolo,
-            "descrizione": desc,
-            "domande":    domande,
-        }
-
-        await interaction.response.send_message(
-            f"✅ **Bando `{titolo}` creato con successo!**\n"
-            f"Le domande impostate sono:\n" +
-            "\n".join(f"• {d}" for d in domande) +
-            f"\n\nIl bando comparirà automaticamente nel pannello `/bandi`.",
-            ephemeral=True
+        titolo  = self.titolo_bando.value.strip()
+        desc    = self.descrizione_bando.value.strip()
+        domande = [
+            self.domanda1.value.strip(),
+            self.domanda2.value.strip(),
+            self.domanda3.value.strip(),
+        ]
+        # Apre step 2 per le domande 4 e 5
+        await interaction.response.send_modal(
+            ModalCreaBandoStep2(titolo, desc, domande)
         )
 
 
@@ -5938,9 +5973,9 @@ class ModalCreaBando(discord.ui.Modal, title="📝 Crea Nuovo Bando"):
 
 class ModalCandidaturaBandoCustom(discord.ui.Modal):
     def __init__(self, key: str):
-        self.key = key
         bando = bandi_personalizzati[key]
         super().__init__(title=f"📋 Candidatura — {bando['titolo'][:40]}")
+        self.key = key
         self._fields = []
         for i, domanda in enumerate(bando["domande"][:5]):
             stile = discord.TextStyle.paragraph if i >= 2 else discord.TextStyle.short
@@ -5954,10 +5989,10 @@ class ModalCandidaturaBandoCustom(discord.ui.Modal):
             self._fields.append(campo)
 
     async def on_submit(self, interaction: discord.Interaction):
-        bando  = bandi_personalizzati.get(self.key)
+        bando = bandi_personalizzati.get(self.key)
         if not bando:
             return await interaction.response.send_message("❌ Bando non trovato.", ephemeral=True)
-        campi  = {f.label: f.value for f in self._fields}
+        campi = {f.label: f.value for f in self._fields}
         embed  = discord.Embed(
             title=f"📋 CANDIDATURA — {bando['titolo'].upper()}",
             color=discord.Color.from_rgb(255, 107, 53),
