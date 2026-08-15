@@ -6096,8 +6096,6 @@ class SelectBandoCustom(discord.ui.Select):
 class ViewBandi(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
-        # Select menu bandi fissi
-        self.add_item(SelectBando())
         # Select menu bandi personalizzati (se ce ne sono)
         if bandi_personalizzati:
             self.add_item(SelectBandoCustom())
@@ -6178,26 +6176,21 @@ async def bandi_cmd(interaction: discord.Interaction):
     )
     embed.set_thumbnail(url=LOGO_SERVER)
 
-    # Lista bandi personalizzati attivi
-    bandi_attivi_str = ""
     if bandi_personalizzati:
-        bandi_attivi_str = "\n\n**📋 Bandi Speciali Attivi:**\n" + "\n".join(
-            f"• {b['titolo']} — {b['descrizione'][:60]}"
+        lista_bandi = "\n".join(
+            f"📋 **{b['titolo']}** — {b['descrizione'][:60]}"
             for b in bandi_personalizzati.values()
         )
+    else:
+        lista_bandi = "_Nessun bando attivo al momento._"
 
     embed.description = (
         "➢ **Benvenuto nel portale bandi di lavoro di Eclipse City RP!**\n\n"
-        "Seleziona il lavoro per cui vuoi candidarti dal menu qui sotto.\n"
+        "Seleziona il bando per cui vuoi candidarti dal menu qui sotto.\n"
         "Compila il modulo con cura — lo staff valuterà la tua candidatura e riceverai una risposta in DM.\n\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "🔫 Ammunation  ·  🏠 Dynasty 8  ·  🚗 Concessionario\n"
-        "👮 Polizia  ·  🪖 S.W.A.T.  ·  🏦 Banca\n"
-        "🚑 EMS  ·  🚒 MSFD  ·  ⚖️ Avvocato  ·  🔨 Giudice\n"
-        "🛒 Minimarket  ·  🍸 Vanilla Unicorn  ·  🔧 Meccanico\n"
-        "📦 Import-Export  ·  🎰 Casino  ·  ✈️ Pegasus  ·  🍽️ Isla De Oro\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━"
-        + bandi_attivi_str
+        + lista_bandi +
+        "\n━━━━━━━━━━━━━━━━━━━━━━━━"
     )
     embed.set_footer(text="Eclipse City RP — Portale Lavori")
     await interaction.channel.send(embed=embed, view=ViewBandi())
