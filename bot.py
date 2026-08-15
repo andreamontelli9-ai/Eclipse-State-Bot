@@ -1477,81 +1477,6 @@ async def rpoff(interaction: discord.Interaction):
     await interaction.channel.send(content="@everyone", embed=embed)
     await interaction.delete_original_response()
 
-@bot.tree.command(name="regolamento", description="📜 Mostra il regolamento del server")
-async def regolamento(interaction: discord.Interaction):
-    await interaction.response.defer()
-
-    REGOLE_1 = (
-        "**1) FailRP** — Compiere azioni irrealistiche o forzate durante il roleplay.\n"
-        "**2) RDM** — Uccidere un player senza una valida motivazione RP.\n"
-        "**3) VDM** — Investire un player senza una motivazione valida.\n"
-        "**4) NoFear** — Mancata simulazione della paura durante il gioco di ruolo.\n"
-        "**5) NoFear Police** — Non rispettare il contesto RP durante un arresto, provocando la polizia senza motivo.\n"
-        "**6) PowerGame** — Sfruttare meccaniche irrealistiche non coerenti con il roleplay.\n"
-        "**7) PowerPlay** — Azioni che impediscono ad un altro player di controbattere.\n"
-        "**8) No Crash** — In caso di incidente bisogna simulare realisticamente le conseguenze.\n"
-        "**9) BunnyHop** — Saltare ripetutamente o fare capriole per andare più veloci o schivare colpi.\n"
-        "**10) MetaGame** — Usare informazioni OOC all'interno del roleplay IC.\n"
-        "**11) Looting** — Svuotare l'inventario di un giocatore senza una scena RP valida."
-    )
-
-    REGOLE_2 = (
-        "**12) Low Engagement** — Scarsa interpretazione RP che disturba altri giocatori.\n"
-        "**13) HRZ** — Infastidire la chat vocale (soffiare nel microfono, parlare OOC in IC).\n"
-        "**14) Miss RP Action** — Azioni RP non scritte nel canale apposito non sono valide.\n"
-        "**15) MixChat** — Confondere la chat IC con la chat OOC e viceversa.\n"
-        "**16) MixGun** — Uso di armi che non si hanno in RP.\n"
-        "**17) MixCar** — Uso di veicoli che non si hanno in RP.\n"
-        "**18) ItemAbuse** — Uso di oggetti che non si hanno in RP.\n"
-        "**19) Fake Calling** — Chiamate false per intrappolare o rapire altri giocatori.\n"
-        "**20) Mira Assistita** — Severamente vietato. Comporta ban immediato.\n"
-        "**21) Armi a Grosso Calibro** — Vietato portarle senza tracolla o zaino. Pena: Warn 1.\n"
-        "**22) Revenge Kill** — Vendicarsi di chi ti ha ucciso dopo essere stato rianimato.\n"
-        "**23) Spawn Kill** — Uccidere una persona appena spawnata.\n"
-        "**24) NLR** — Dopo la morte non puoi rientrare in azione né ricordarla senza supporto medico."
-    )
-
-    REGOLE_3 = (
-        "**25) CombatLog** — Unirsi ad un'azione in corso appena atterrati in città.\n"
-        "**26) CombatSlog** — Uscire dal gioco durante un'azione roleplay.\n"
-        "**27) LTAA / RTA** — Uscire o respawnare durante un'azione per evitare conseguenze RP.\n"
-        "**28) Cop Baiting** — Vietato provocare le forze dell'ordine senza motivo.\n"
-        "**29) Realistic Avatar** — Obbligatorio avere un personaggio realistico.\n"
-        "**30) Car Surf** — Stare in piedi su un veicolo in movimento.\n"
-        "**31) Car Kill** — Fermarsi sopra un player con il veicolo per ucciderlo.\n"
-        "**32) CarJack** — Rubare un veicolo senza una buona motivazione RP.\n"
-        "**33) Drive By** — Sparare da un veicolo in movimento mentre si è alla guida.\n"
-        "**34) Bug Abusing** — Sfruttare bug per trarne vantaggio. Obbligatorio segnalarli allo staff.\n"
-        "**35) Stream Sniping** — Usare le live degli streamer per ottenere info RP.\n"
-        "**36) Back Seating** — Dare consigli agli streamer nelle loro live.\n"
-        "**37) AFK durante azioni** — Vietato andare offline durante un'azione già cominciata.\n"
-        "**38) AntiAFK** — Vietato usare meccaniche per evitare il kick AFK.\n"
-        "**39) Trolling in RP** — Vietato compiere azioni troll durante il roleplay.\n"
-        "**40) Spam** — Vietato spammare in qualsiasi canale Discord o chat di gioco.\n"
-        "**41) Toxic PvP** — Vietato avere comportamenti tossici durante il PvP."
-    )
-
-    embed1 = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-    embed1.set_author(name="📜 REGOLAMENTO UFFICIALE — ECLIPSE CITY RP®", icon_url=LOGO_SERVER)
-    embed1.description = (
-        "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "⚠️ *Leggere attentamente. L'ignoranza del regolamento non giustifica le infrazioni.*\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        + REGOLE_1
-    )
-    embed1.set_footer(text="Eclipse City RP® — Pagina 1/3")
-
-    embed2 = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-    embed2.description = REGOLE_2
-    embed2.set_footer(text="Eclipse City RP® — Pagina 2/3")
-
-    embed3 = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-    embed3.description = REGOLE_3
-    embed3.set_footer(text="Eclipse City RP® — Pagina 3/3 | Grazie per aver letto il regolamento ✅")
-    embed3.set_thumbnail(url=LOGO_SERVER)
-
-    await interaction.followup.send(embeds=[embed1, embed2, embed3])
-
 @bot.tree.command(name="convoca", description="📢 Convoca un utente in assistenza (Solo Staff)")
 @is_staff_or_direttore()
 async def convoca(interaction: discord.Interaction, utente: discord.Member, motivo: str):
@@ -2277,38 +2202,6 @@ class CasaPopolareView(discord.ui.View):
         embed = discord.Embed(title="🏢 Assegnazione Casa Popolare", description=f"La casa popolare è stata assegnata correttamente!\n\n**Cittadino:** {user.mention} ({nome_completo})\n**Alloggio:** {indirizzo_completo}", color=discord.Color.from_rgb(255, 107, 53))
         embed.set_footer(text=f"'{chiave_nome}' aggiunto all'inventario del cittadino.")
         await interaction.response.edit_message(content=None, embed=embed, view=None)
-
-@bot.tree.command(name="registra-casa", description="🏢 Assegna una casa popolare a un cittadino (Solo Staff)")
-@is_staff_or_direttore()
-async def registra_casa(interaction: discord.Interaction):
-    view = CasaPopolareView()
-    await interaction.response.send_message("⚙️ **Pannello Assegnazione Case Popolari**\nSeleziona il cittadino e la via dai menu a tendina.", view=view, ephemeral=True)
-
-@bot.tree.command(name="sfratta-casa", description="🏢 Rimuove l'assegnazione di una casa popolare (Solo Staff)")
-@app_commands.describe(casa="Casa da sfrattare")
-@is_staff_or_direttore()
-async def sfratta_casa(interaction: discord.Interaction, casa: str):
-    if casa not in case_popolari:
-        return await interaction.response.send_message("❌ Casa non trovata nel registro.", ephemeral=True)
-    info = case_popolari.pop(casa)
-    proprietario_id = info["proprietario"]
-    chiave_nome = f"🔑 Chiave - {info['via']}, Apt {info['numero']}"
-    if proprietario_id in inventari and chiave_nome in inventari[proprietario_id]:
-        inventari[proprietario_id].remove(chiave_nome)
-    _salva_dati()
-    membro = interaction.guild.get_member(proprietario_id)
-    nome_prop = membro.mention if membro else info.get('nome_completo', 'Sconosciuto')
-    await interaction.response.send_message(f"🏢 Casa **{info['via']}, Apt {info['numero']}** sfrattata. Precedente proprietario: {nome_prop}")
-    await log_staff(interaction.guild, f"🏢 {interaction.user.mention} ha sfrattato {nome_prop} da {info['via']}, Apt {info['numero']}.", discord.Color.red())
-
-@sfratta_casa.autocomplete("casa")
-async def sfratta_casa_autocomplete(interaction: discord.Interaction, current: str):
-    opzioni = []
-    for chiave, info in case_popolari.items():
-        etichetta = f"{info['via']}, Apt {info['numero']}"
-        if current.lower() in etichetta.lower():
-            opzioni.append(app_commands.Choice(name=etichetta, value=chiave))
-    return opzioni[:25]
 
 @bot.tree.command(name="registra-targa", description="🚗 Crea il documento di registrazione veicolo")
 @is_concessionario_or_staff()
@@ -3928,65 +3821,6 @@ async def inventario(interaction: discord.Interaction, utente: discord.Member = 
     await interaction.response.send_message(embed=embed)
     await log_azione(interaction.guild, interaction.user, "📦 Inventario consultato", f"Target: {target.display_name} | Peso: {peso_tot} kg", discord.Color.from_rgb(255, 107, 53), canale_origine=interaction.channel)
 
-@bot.tree.command(name="inventario-cofano", description="🚗 Controlla gli oggetti nel cofano del veicolo")
-async def inventario_cofano(interaction: discord.Interaction, targa: str):
-    targa_up = targa.upper().strip()
-    items = inventari_cofani.get(targa_up, ["Cofano vuoto o veicolo inesistente"])
-    await interaction.response.send_message(f"🚗 **COFANO `[{targa_up}]`:**\n" + ", ".join(items), ephemeral=True)
-
-@bot.tree.command(name="metti-cofano", description="📥 Metti un oggetto dal tuo inventario nel cofano")
-@_blocca_se_dorme()
-async def metti_cofano(interaction: discord.Interaction, targa: str):
-    uid = interaction.user.id
-    targa_up = targa.upper().strip()
-    inv = inventari.get(uid, [])
-    if not inv:
-        return await interaction.response.send_message("❌ Il tuo inventario è vuoto.", ephemeral=True)
-
-    from collections import Counter
-    conteggio = Counter(inv)
-    opzioni = [
-        discord.SelectOption(label=f"{nome} (x{qty})", value=nome)
-        for nome, qty in conteggio.items()
-    ][:25]
-
-    class CofanoSelect(discord.ui.Select):
-        def __init__(self):
-            super().__init__(placeholder="Scegli oggetto da mettere nel cofano...", options=opzioni)
-        async def callback(self, inter: discord.Interaction):
-            scelta = self.values[0]
-            if scelta not in inventari.get(uid, []):
-                return await inter.response.send_message("❌ Oggetto non più disponibile.", ephemeral=True)
-            inventari[uid].remove(scelta)
-            if targa_up not in inventari_cofani: inventari_cofani[targa_up] = []
-            inventari_cofani[targa_up].append(scelta)
-            embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-            embed.description = (
-                f"📥 | **OGGETTO NEL COFANO**\n\n"
-                f"➢ **{scelta}** rimosso dall'inventario.\n"
-                f"➢ Depositato nel cofano `[{targa_up}]`."
-            )
-            await inter.response.edit_message(embed=embed, view=None)
-
-    class CofanoView(discord.ui.View):
-        def __init__(self):
-            super().__init__(timeout=30)
-            self.add_item(CofanoSelect())
-
-    embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-    embed.description = f"📥 | **METTI NEL COFANO**\n\n➢ Veicolo: `[{targa_up}]`\n➢ Scegli un oggetto dall'inventario."
-    await interaction.response.send_message(embed=embed, view=CofanoView(), ephemeral=True)
-
-@bot.tree.command(name="prendi-cofano", description="📤 Prendi un oggetto dal cofano")
-@_blocca_se_dorme()
-async def prendi_cofano(interaction: discord.Interaction, targa: str, oggetto: str):
-    targa_up = targa.upper().strip()
-    if targa_up in inventari_cofani and oggetto in inventari_cofani[targa_up]:
-        inventari_cofani[targa_up].remove(oggetto)
-        await interaction.response.send_message(f"📤 Estratto **{oggetto}** dal cofano `[{targa_up}]`.")
-    else:
-        await interaction.response.send_message(f"❌ Oggetto non presente in questo cofano.", ephemeral=True)
-
 class ChiamataView(discord.ui.View):
     def __init__(self, chiamante: discord.Member, ricevente: discord.Member, messaggio: str, dm_message):
         super().__init__(timeout=30)
@@ -4114,40 +3948,6 @@ class ChiamataView(discord.ui.View):
             except Exception:
                 pass
 
-
-@bot.tree.command(name="chiama", description="📞 Chiama un cittadino via telefono IC")
-@_blocca_se_dorme()
-async def chiama(interaction: discord.Interaction, utente: discord.Member, messaggio: str = "Ciao, ti sto chiamando!"):
-    if utente.id == interaction.user.id:
-        return await interaction.response.send_message("❌ Non puoi chiamare te stesso.", ephemeral=True)
-
-    embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-    embed.description = (
-        f"📞 | **CHIAMATA IN ARRIVO**\n\n"
-        f"**DA ➢**\n{interaction.user.mention}\n\n"
-        f"**A ➢**\n{utente.mention}\n\n"
-        f"**MESSAGGIO ➢**\n*{messaggio}*\n\n"
-        f"➢ Hai **30 secondi** per rispondere."
-    )
-    embed.set_footer(text=f"{datetime.now().strftime('%d/%m/%Y %H:%M')}")
-
-    try:
-        view = ChiamataView(interaction.user, utente, messaggio, None)
-        dm_msg = await utente.send(embed=embed, view=view)
-        view.dm_message = dm_msg
-        await interaction.response.send_message(
-            f"📞 Chiamata inviata a {utente.mention} in DM!", ephemeral=True
-        )
-        await log_azione(interaction.guild, interaction.user, "📞 Chiamata telefonica", f"A: {utente.mention} | Messaggio: {messaggio[:60]}", discord.Color.from_rgb(255, 107, 53), canale_origine=interaction.channel)
-    except discord.Forbidden:
-        await interaction.response.send_message(
-            f"❌ Impossibile contattare {utente.mention}: ha i DM chiusi.", ephemeral=True
-        )
-
-
-# ==========================================
-# NUOVI COMANDI: WIPE, ZAINO, PESCA, ITEM-VIEW
-# ==========================================
 
 @bot.tree.command(name="metti-zaino", description="🎒 Metti un oggetto dall'inventario nello zaino")
 @_blocca_se_dorme()
@@ -10187,40 +9987,6 @@ async def _ripristina_canali(guild: discord.Guild, canali: list, msg_dm):
             except Exception:
                 pass
     return creati
-
-
-@bot.tree.command(name="backup", description="💾 Esegui il backup completo del server (solo Developer)")
-@is_dev_or_owner()
-async def backup_server(interaction: discord.Interaction, guild_id: str = None):
-    await interaction.response.defer(ephemeral=True, thinking=True)
-    try:
-        if guild_id:
-            guild = bot.get_guild(int(guild_id))
-            if guild is None:
-                return await interaction.followup.send(
-                    f"❌ Server con ID `{guild_id}` non trovato. Il bot è presente in quel server?",
-                    ephemeral=True
-                )
-        else:
-            guild = interaction.guild
-
-        output_file = f"backup_{guild.id}.json"
-        riepilogo, codice = await _esegui_backup_completo(guild, output_file, dm_user=interaction.user)
-        embed = discord.Embed(
-            title="✅ Backup completato",
-            description=(
-                f"**Server:** {guild.name} (`{guild.id}`)\n"
-                f"**File:** `{output_file}`\n\n"
-                f"{riepilogo}\n\n"
-                f"🔑 Codice ripristino inviato in DM."
-            ),
-            color=discord.Color.from_rgb(255, 107, 53),
-            timestamp=datetime.now()
-        )
-        embed.set_footer(text=f"Richiesto da {interaction.user}", icon_url=interaction.user.display_avatar.url)
-        await interaction.followup.send(embed=embed, ephemeral=True)
-    except Exception as e:
-        await interaction.followup.send(f"❌ Errore durante il backup: `{e}`", ephemeral=True)
 
 
 @bot.tree.command(name="ripristina", description="♻️ Ripristina un backup su un server (solo Developer)")
