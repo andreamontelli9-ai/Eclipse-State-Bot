@@ -5524,7 +5524,7 @@ async def supermarket(interaction: discord.Interaction):
 # 🏢 SISTEMA BANDI DI LAVORO
 # ==========================================
 
-CH_BANDI_CANDIDATURE  = 1535822509688234015  # canale dove arrivano le candidature
+CH_BANDI_CANDIDATURE  = 1532891367611826187  # canale dove arrivano le candidature
 CH_BANDI_ESITI        = 1532127581409640478  # canale dove arriva accettato/rifiutato
 
 LAVORI_EMOJI = {
@@ -5866,10 +5866,304 @@ class SelectBando(discord.ui.Select):
         await interaction.response.send_modal(modal)
 
 
+# ─── STORAGE BANDI PERSONALIZZATI ────────────────────────────────────────────
+# Struttura: { "nome_bando": { "titolo": str, "descrizione": str, "domande": [str, ...] } }
+RUOLO_GESTIONE_BANDI = 1532134838650278002  # Unico ruolo che può creare/eliminare bandi
+
+bandi_personalizzati: dict = {}   # dizionario in memoria
+
+
+def _ha_ruolo_bandi(interaction: discord.Interaction) -> bool:
+    return any(r.id == RUOLO_GESTIONE_BANDI for r in interaction.user.roles)
+
+
+# ─── MODAL: STEP 1 — Informazioni del bando (titolo + 7 domande) ──────────────
+
+class ModalCreaBando(discord.ui.Modal, title="📝 Crea Nuovo Bando"):
+    titolo_bando = discord.ui.TextInput(
+        label="Titolo del bando",
+        placeholder="Es: Bando Vigili Urbani",
+        required=True, max_length=80
+    )
+    descrizione_bando = discord.ui.TextInput(
+        label="Descrizione breve del bando",
+        style=discord.TextStyle.paragraph,
+        placeholder="Es: Siamo alla ricerca di candidati per...",
+        required=True, max_length=300
+    )
+    domande_raw = discord.ui.TextInput(
+        label="7 Domande (una per riga)",
+        style=discord.TextStyle.paragraph,
+        placeholder=(
+            "Nome e Cognome IC\n"
+            "Età IC\n"
+            "Motivazione\n"
+            "Esperienza precedente\n"
+            "Disponibilità oraria\n"
+            "Precedenti penali IC (Sì/No)\n"
+            "Perché sei adatto a questo ruolo?"
+        ),
+        required=True, max_length=1000
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        righe = [r.strip() for r in self.domande_raw.value.strip().splitlines() if r.strip()]
+        if len(righe) < 1:
+            return await interaction.response.send_message(
+                "❌ Inserisci almeno 1 domanda.", ephemeral=True
+            )
+        # Limita a 5 domande perché Discord Modal supporta max 5 campi
+        domande = righe[:5]
+        titolo   = self.titolo_bando.value.strip()
+        desc     = self.descrizione_bando.value.strip()
+        key      = titolo.lower().replace(" ", "_")[:40]
+
+        # Salva il bando in memoria
+        bandi_personalizzati[key] = {
+            "titolo":     titolo,
+            "descrizione": desc,
+            "domande":    domande,
+        }
+
+        await interaction.response.send_message(
+            f"✅ **Bando `{titolo}` creato con successo!**\n"
+            f"Le domande impostate sono:\n" +
+            "\n".join(f"• {d}" for d in domande) +
+            f"\n\nIl bando comparirà automaticamente nel pannello `/bandi`.",
+            ephemeral=True
+        )
+
+
+# ─── MODAL CANDIDATURA BANDO PERSONALIZZATO (max 5 domande) ──────────────────
+
+class ModalCandidaturaBandoCustom(discord.ui.Modal):
+    def __init__(self, key: str):
+        self.key = key
+        bando = bandi_personalizzati[key]
+        super().__init__(title=f"📋 Candidatura — {bando['titolo'][:40]}")
+        self._fields = []
+        for i, domanda in enumerate(bando["domande"][:5]):
+            stile = discord.TextStyle.paragraph if i >= 2 else discord.TextStyle.short
+            campo = discord.ui.TextInput(
+                label=domanda[:45],
+                style=stile,
+                required=True,
+                max_length=500
+            )
+            self.add_item(campo)
+            self._fields.append(campo)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        bando  = bandi_personalizzati.get(self.key)
+        if not bando:
+            return await interaction.response.send_message("❌ Bando non trovato.", ephemeral=True)
+        campi  = {f.label: f.value for f in self._fields}
+        embed  = discord.Embed(
+            title=f"📋 CANDIDATURA — {bando['titolo'].upper()}",
+            color=discord.Color.from_rgb(255, 107, 53),
+            timestamp=datetime.now()
+        )
+        embed.set_thumbnail(url=LOGO_SERVER)
+        embed.set_author(
+            name=f"{interaction.user.display_name} ({interaction.user})",
+            icon_url=interaction.user.display_avatar.url
+        )
+        for label, valore in campi.items():
+            embed.add_field(name=label, value=valore, inline=False)
+        embed.set_footer(text=f"Bando: {bando['titolo']} | ID candidato: {interaction.user.id}")
+
+        canale = interaction.guild.get_channel(CH_BANDI_CANDIDATURE)
+        if canale:
+            view = ViewEsitoBandoCustom(interaction.user.id, self.key)
+            await canale.send(embed=embed, view=view)
+
+        await interaction.response.send_message(
+            f"✅ **Candidatura per {bando['titolo']} inviata!**\nRiceverai una risposta dallo staff.",
+            ephemeral=True
+        )
+
+
+# ─── VIEW ESITO BANDO CUSTOM (Accetta/Rifiuta) ────────────────────────────────
+
+class ViewEsitoBandoCustom(discord.ui.View):
+    def __init__(self, candidato_id: int, key: str):
+        super().__init__(timeout=None)
+        self.candidato_id = candidato_id
+        self.key = key
+
+    @discord.ui.button(label="✅ Accetta", style=discord.ButtonStyle.success, custom_id="bandocustom_accetta")
+    async def accetta(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not any(r.name.lower() in ["staff", "admin", "developer", "direttore"] for r in interaction.user.roles):
+            return await interaction.response.send_message("❌ Non hai i permessi.", ephemeral=True)
+        bando     = bandi_personalizzati.get(self.key, {})
+        nome      = bando.get("titolo", self.key)
+        candidato = interaction.guild.get_member(self.candidato_id)
+        canale_esiti = interaction.guild.get_channel(CH_BANDI_ESITI)
+        embed = discord.Embed(
+            title=f"✅ CANDIDATURA ACCETTATA — {nome.upper()}",
+            color=discord.Color.green(), timestamp=datetime.now()
+        )
+        embed.set_thumbnail(url=LOGO_SERVER)
+        embed.add_field(name="Candidato", value=candidato.mention if candidato else f"ID: {self.candidato_id}", inline=True)
+        embed.add_field(name="Bando", value=nome, inline=True)
+        embed.add_field(name="Approvato da", value=interaction.user.mention, inline=True)
+        if canale_esiti:
+            await canale_esiti.send(embed=embed)
+        if candidato:
+            try:
+                dm = discord.Embed(
+                    title=f"✅ Candidatura Accettata — {nome}",
+                    description=f"La tua candidatura per **{nome}** è stata **accettata**.\nContatta lo staff per ulteriori informazioni.",
+                    color=discord.Color.green()
+                )
+                dm.set_thumbnail(url=LOGO_SERVER)
+                await candidato.send(embed=dm)
+            except Exception:
+                pass
+        for child in self.children:
+            child.disabled = True
+        await interaction.message.edit(view=self)
+        await interaction.response.send_message(f"✅ Candidatura accettata.", ephemeral=True)
+
+    @discord.ui.button(label="❌ Rifiuta", style=discord.ButtonStyle.danger, custom_id="bandocustom_rifiuta")
+    async def rifiuta(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not any(r.name.lower() in ["staff", "admin", "developer", "direttore"] for r in interaction.user.roles):
+            return await interaction.response.send_message("❌ Non hai i permessi.", ephemeral=True)
+        bando     = bandi_personalizzati.get(self.key, {})
+        nome      = bando.get("titolo", self.key)
+        candidato = interaction.guild.get_member(self.candidato_id)
+        canale_esiti = interaction.guild.get_channel(CH_BANDI_ESITI)
+        embed = discord.Embed(
+            title=f"❌ CANDIDATURA RIFIUTATA — {nome.upper()}",
+            color=discord.Color.red(), timestamp=datetime.now()
+        )
+        embed.set_thumbnail(url=LOGO_SERVER)
+        embed.add_field(name="Candidato", value=candidato.mention if candidato else f"ID: {self.candidato_id}", inline=True)
+        embed.add_field(name="Bando", value=nome, inline=True)
+        embed.add_field(name="Rifiutato da", value=interaction.user.mention, inline=True)
+        if canale_esiti:
+            await canale_esiti.send(embed=embed)
+        if candidato:
+            try:
+                dm = discord.Embed(
+                    title=f"❌ Candidatura Rifiutata — {nome}",
+                    description=f"Purtroppo la tua candidatura per **{nome}** è stata **rifiutata**.\nPuoi riprovare in futuro!",
+                    color=discord.Color.red()
+                )
+                dm.set_thumbnail(url=LOGO_SERVER)
+                await candidato.send(embed=dm)
+            except Exception:
+                pass
+        for child in self.children:
+            child.disabled = True
+        await interaction.message.edit(view=self)
+        await interaction.response.send_message(f"❌ Candidatura rifiutata.", ephemeral=True)
+
+
+# ─── SELECT BANDI PERSONALIZZATI ─────────────────────────────────────────────
+
+class SelectBandoCustom(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(
+                label=b["titolo"][:50],
+                value=key,
+                emoji="📋",
+                description=b["descrizione"][:50]
+            )
+            for key, b in list(bandi_personalizzati.items())[:25]
+        ]
+        if not options:
+            options = [discord.SelectOption(label="Nessun bando attivo", value="__vuoto__", emoji="📭")]
+        super().__init__(
+            placeholder="📋 Seleziona un bando personalizzato...",
+            min_values=1, max_values=1, options=options,
+            custom_id="select_bando_custom"
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        key = self.values[0]
+        if key == "__vuoto__":
+            return await interaction.response.send_message("ℹ️ Non ci sono bandi attivi al momento.", ephemeral=True)
+        if key not in bandi_personalizzati:
+            return await interaction.response.send_message("❌ Bando non trovato.", ephemeral=True)
+        modal = ModalCandidaturaBandoCustom(key)
+        await interaction.response.send_modal(modal)
+
+
+# ─── VIEW PANNELLO BANDI (con bottoni staff) ──────────────────────────────────
+
 class ViewBandi(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
+        # Select menu bandi fissi
         self.add_item(SelectBando())
+        # Select menu bandi personalizzati (se ce ne sono)
+        if bandi_personalizzati:
+            self.add_item(SelectBandoCustom())
+
+    @discord.ui.button(
+        label="➕ Crea Bando",
+        style=discord.ButtonStyle.success,
+        custom_id="bandi_crea",
+        row=2
+    )
+    async def crea_bando(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not _ha_ruolo_bandi(interaction):
+            return await interaction.response.send_message(
+                "❌ Non hai il permesso per creare bandi.", ephemeral=True
+            )
+        await interaction.response.send_modal(ModalCreaBando())
+
+    @discord.ui.button(
+        label="🗑️ Elimina Bando",
+        style=discord.ButtonStyle.danger,
+        custom_id="bandi_elimina",
+        row=2
+    )
+    async def elimina_bando(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not _ha_ruolo_bandi(interaction):
+            return await interaction.response.send_message(
+                "❌ Non hai il permesso per eliminare bandi.", ephemeral=True
+            )
+        if not bandi_personalizzati:
+            return await interaction.response.send_message(
+                "ℹ️ Non ci sono bandi personalizzati da eliminare.", ephemeral=True
+            )
+        # Mostra un select per scegliere quale bando eliminare
+        view = ViewEliminaBando()
+        await interaction.response.send_message(
+            "🗑️ **Seleziona il bando da eliminare:**",
+            view=view,
+            ephemeral=True
+        )
+
+
+class SelectEliminaBando(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label=b["titolo"][:50], value=key, emoji="🗑️")
+            for key, b in list(bandi_personalizzati.items())[:25]
+        ]
+        super().__init__(
+            placeholder="Scegli il bando da eliminare...",
+            min_values=1, max_values=1, options=options
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        if not _ha_ruolo_bandi(interaction):
+            return await interaction.response.send_message("❌ Permesso negato.", ephemeral=True)
+        key = self.values[0]
+        nome = bandi_personalizzati.pop(key, {}).get("titolo", key)
+        await interaction.response.send_message(
+            f"✅ **Bando `{nome}` eliminato con successo.**", ephemeral=True
+        )
+
+
+class ViewEliminaBando(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=60)
+        self.add_item(SelectEliminaBando())
 
 
 # ─── COMANDO /bandi ────────────────────────────────────────────────────────────
@@ -5883,6 +6177,15 @@ async def bandi_cmd(interaction: discord.Interaction):
         timestamp=datetime.now()
     )
     embed.set_thumbnail(url=LOGO_SERVER)
+
+    # Lista bandi personalizzati attivi
+    bandi_attivi_str = ""
+    if bandi_personalizzati:
+        bandi_attivi_str = "\n\n**📋 Bandi Speciali Attivi:**\n" + "\n".join(
+            f"• {b['titolo']} — {b['descrizione'][:60]}"
+            for b in bandi_personalizzati.values()
+        )
+
     embed.description = (
         "➢ **Benvenuto nel portale bandi di lavoro di Eclipse City RP!**\n\n"
         "Seleziona il lavoro per cui vuoi candidarti dal menu qui sotto.\n"
@@ -5894,6 +6197,7 @@ async def bandi_cmd(interaction: discord.Interaction):
         "🛒 Minimarket  ·  🍸 Vanilla Unicorn  ·  🔧 Meccanico\n"
         "📦 Import-Export  ·  🎰 Casino  ·  ✈️ Pegasus  ·  🍽️ Isla De Oro\n"
         "━━━━━━━━━━━━━━━━━━━━━━━━"
+        + bandi_attivi_str
     )
     embed.set_footer(text="Eclipse City RP — Portale Lavori")
     await interaction.channel.send(embed=embed, view=ViewBandi())
@@ -10146,6 +10450,7 @@ async def on_ready():
     bot.add_view(ViewPannelloBg())
     bot.add_view(TicketPanelView())
     bot.add_view(ViewBandi())
+    bot.add_view(ViewEsitoBandoCustom(0, "__placeholder__"))
 
 
 # --- AVVIO DEL BOT ---
