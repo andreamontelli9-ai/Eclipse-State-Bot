@@ -10634,7 +10634,17 @@ async def _aggiorna_embed_contratto(interaction: discord.Interaction, msg_id: in
         await interaction.message.edit(embed=embed)
 
 
-@bot.tree.command(name="revoca-contratto", description="🚫 Revoca un contratto d'affitto [Solo Direttore Dynasty 8]")
+dynasty8_group = app_commands.Group(name="dynasty8", description="🏠 Comandi Agenzia Immobiliare Dynasty 8")
+
+@dynasty8_group.command(name="contratto", description="🏠 Crea un contratto d'affitto [Solo Direttore Dynasty 8]")
+async def contratto_affitto_cmd(interaction: discord.Interaction):
+    if not any(r.id in (RUOLO_DIRETTORE_DYNASTY8, RUOLO_FIRMA_DYNASTY8) for r in interaction.user.roles):
+        return await interaction.response.send_message(
+            "❌ Solo il Direttore Dynasty 8 può emettere contratti d'affitto.", ephemeral=True
+        )
+    await interaction.response.send_modal(ModalContrattoAffitto())
+
+@dynasty8_group.command(name="revoca", description="🚫 Revoca un contratto d'affitto [Solo Direttore Dynasty 8]")
 @app_commands.describe(intestatario="Nome e Cognome IC dell'intestatario", motivo="Motivo della revoca")
 async def revoca_contratto_cmd(interaction: discord.Interaction, intestatario: str, motivo: str):
     if not any(r.id == RUOLO_DIRETTORE_DYNASTY8 for r in interaction.user.roles):
@@ -10654,14 +10664,7 @@ async def revoca_contratto_cmd(interaction: discord.Interaction, intestatario: s
     await interaction.channel.send(embed=embed)
     await interaction.response.send_message("✅ Contratto revocato e pubblicato nel canale.", ephemeral=True)
 
-
-@bot.tree.command(name="contratto-affitto", description="🏠 Crea un contratto d'affitto [Solo Direttore Dynasty 8]")
-async def contratto_affitto_cmd(interaction: discord.Interaction):
-    if not any(r.id in (RUOLO_DIRETTORE_DYNASTY8, RUOLO_FIRMA_DYNASTY8) for r in interaction.user.roles):
-        return await interaction.response.send_message(
-            "❌ Solo il Direttore Dynasty 8 può emettere contratti d'affitto.", ephemeral=True
-        )
-    await interaction.response.send_modal(ModalContrattoAffitto())
+bot.tree.add_command(dynasty8_group)
 
 
 # --- AVVIO DEL BOT ---
