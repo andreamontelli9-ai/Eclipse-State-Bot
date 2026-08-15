@@ -5889,6 +5889,16 @@ class ModalCreaBando(discord.ui.Modal, title="📝 Crea Nuovo Bando"):
         placeholder="Es: Bando Polizia Municipale",
         required=True, max_length=80
     )
+    nome_cognome_info = discord.ui.TextInput(
+        label="── Campo fisso: Nome e Cognome IC ──",
+        placeholder="Questo campo sarà sempre presente nel form",
+        required=False, max_length=1, default="✔ Presente"
+    )
+    eta_info = discord.ui.TextInput(
+        label="── Campo fisso: Età IC ──",
+        placeholder="Questo campo sarà sempre presente nel form",
+        required=False, max_length=1, default="✔ Presente"
+    )
     domanda1 = discord.ui.TextInput(
         label="Domanda 1",
         placeholder="Es: Motivazione — Perché vuoi questo ruolo?",
@@ -10459,6 +10469,178 @@ async def on_ready():
     bot.add_view(TicketPanelView())
     bot.add_view(ViewBandi())
     bot.add_view(ViewEsitoBandoCustom(0, "__placeholder__"))
+    bot.add_view(ViewFirmaContratto())
+
+
+# ══════════════════════════════════════════════════════════════════
+# 🏠  SISTEMA CONTRATTO D'AFFITTO — DYNASTY 8
+# ══════════════════════════════════════════════════════════════════
+
+RUOLO_DIRETTORE_DYNASTY8 = 1532126796877660343   # direttore dynasty8
+RUOLO_FIRMA_DYNASTY8     = 1532126909939318926   # ruolo che può firmare (direttore firma)
+
+# Stato firme per ogni contratto attivo: { message_id: { "cittadino": bool, "direttore": bool, "cittadino_id": int } }
+contratti_affitto_firme: dict = {}
+
+
+class ModalContrattoAffitto(discord.ui.Modal, title="🏠 Contratto d'Affitto — Dynasty 8"):
+    nome_cognome = discord.ui.TextInput(
+        label="Nome e Cognome IC dell'intestatario",
+        placeholder="Es: Marco Rossi",
+        required=True, max_length=80
+    )
+    posizione_casa = discord.ui.TextInput(
+        label="Posizione / Indirizzo della casa",
+        placeholder="Es: 1561 San Vitas St, Apt. 3",
+        required=True, max_length=150
+    )
+    affitto_settimanale = discord.ui.TextInput(
+        label="Affitto settimanale ($)",
+        placeholder="Es: 5000",
+        required=True, max_length=20
+    )
+    responsabilita = discord.ui.TextInput(
+        label="Responsabilità dell'inquilino",
+        style=discord.TextStyle.paragraph,
+        placeholder="Es: Mantenere la proprietà in buono stato, non subaffittare...",
+        required=True, max_length=500
+    )
+    occupazione_reddito = discord.ui.TextInput(
+        label="Occupazione e reddito IC",
+        placeholder="Es: Meccanico, reddito settimanale ~8.000$",
+        required=True, max_length=200
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        # Cerca il membro per nome (intestatario) — il direttore lo compila
+        embed = discord.Embed(
+            title="🏠 CONTRATTO D'AFFITTO — DYNASTY 8",
+            color=discord.Color.from_rgb(255, 107, 53),
+            timestamp=datetime.now()
+        )
+        embed.set_thumbnail(url=LOGO_SERVER)
+        embed.add_field(name="📋 Intestatario", value=self.nome_cognome.value, inline=True)
+        embed.add_field(name="📍 Indirizzo", value=self.posizione_casa.value, inline=True)
+        embed.add_field(name="💰 Affitto Settimanale", value=f"**${self.affitto_settimanale.value}**", inline=True)
+        embed.add_field(name="📌 Responsabilità", value=self.responsabilita.value, inline=False)
+        embed.add_field(name="💼 Occupazione e Reddito IC", value=self.occupazione_reddito.value, inline=False)
+        embed.add_field(
+            name="✍️ Firme",
+            value=(
+                "🔴 Cittadino — **In attesa di firma**\n"
+                "🔴 Direttore Dynasty 8 — **In attesa di firma**"
+            ),
+            inline=False
+        )
+        embed.set_footer(text=f"Contratto emesso da {interaction.user.display_name} | Dynasty 8 Real Estate")
+
+        view = ViewFirmaContratto()
+        await interaction.response.send_message(embed=embed, view=view)
+        msg = await interaction.original_response()
+
+        # Salva stato firme
+        contratti_affitto_firme[msg.id] = {
+            "cittadino":    False,
+            "direttore":    False,
+            "cittadino_id": None,
+            "direttore_id": None,
+            "embed_data": {
+                "intestatario":  self.nome_cognome.value,
+                "indirizzo":     self.posizione_casa.value,
+                "affitto":       self.affitto_settimanale.value,
+                "responsabilita": self.responsabilita.value,
+                "occupazione":   self.occupazione_reddito.value,
+            }
+        }
+
+
+class ViewFirmaContratto(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="✍️ Firma (Cittadino)", style=discord.ButtonStyle.primary, custom_id="contratto_firma_cittadino")
+    async def firma_cittadino(self, interaction: discord.Interaction, button: discord.ui.Button):
+        msg_id = interaction.message.id
+        stato  = contratti_affitto_firme.get(msg_id)
+        if not stato:
+            return await interaction.response.send_message("❌ Contratto non trovato.", ephemeral=True)
+
+        # Chiunque può firmare come cittadino (è l'intestatario che preme)
+        if stato["cittadino"]:
+            return await interaction.response.send_message("❌ Il cittadino ha già firmato.", ephemeral=True)
+
+        # Non permettere al direttore di firmare come cittadino
+        if any(r.id == RUOLO_DIRETTORE_DYNASTY8 for r in interaction.user.roles):
+            return await interaction.response.send_message("❌ Il direttore deve usare il bottone apposito.", ephemeral=True)
+
+        stato["cittadino"]    = True
+        stato["cittadino_id"] = interaction.user.id
+
+        await _aggiorna_embed_contratto(interaction, msg_id, stato)
+        await interaction.response.send_message("✅ Hai firmato il contratto come cittadino.", ephemeral=True)
+
+    @discord.ui.button(label="✍️ Firma (Direttore)", style=discord.ButtonStyle.success, custom_id="contratto_firma_direttore")
+    async def firma_direttore(self, interaction: discord.Interaction, button: discord.ui.Button):
+        msg_id = interaction.message.id
+        stato  = contratti_affitto_firme.get(msg_id)
+        if not stato:
+            return await interaction.response.send_message("❌ Contratto non trovato.", ephemeral=True)
+
+        # Solo chi ha il ruolo giusto può firmare come direttore
+        if not any(r.id in (RUOLO_DIRETTORE_DYNASTY8, RUOLO_FIRMA_DYNASTY8) for r in interaction.user.roles):
+            return await interaction.response.send_message("❌ Non hai il ruolo per firmare come Direttore Dynasty 8.", ephemeral=True)
+
+        if stato["direttore"]:
+            return await interaction.response.send_message("❌ Il direttore ha già firmato.", ephemeral=True)
+
+        stato["direttore"]    = True
+        stato["direttore_id"] = interaction.user.id
+
+        await _aggiorna_embed_contratto(interaction, msg_id, stato)
+        await interaction.response.send_message("✅ Hai firmato il contratto come Direttore.", ephemeral=True)
+
+
+async def _aggiorna_embed_contratto(interaction: discord.Interaction, msg_id: int, stato: dict):
+    dati = stato["embed_data"]
+
+    citt_firma = f"✅ <@{stato['cittadino_id']}> — **Firmato**" if stato["cittadino"] else "🔴 Cittadino — **In attesa di firma**"
+    dir_firma  = f"✅ <@{stato['direttore_id']}> — **Firmato**" if stato["direttore"] else "🔴 Direttore Dynasty 8 — **In attesa di firma**"
+
+    embed = discord.Embed(
+        title="🏠 CONTRATTO D'AFFITTO — DYNASTY 8",
+        color=discord.Color.green() if (stato["cittadino"] and stato["direttore"]) else discord.Color.from_rgb(255, 107, 53),
+        timestamp=datetime.now()
+    )
+    embed.set_thumbnail(url=LOGO_SERVER)
+    embed.add_field(name="📋 Intestatario",        value=dati["intestatario"],  inline=True)
+    embed.add_field(name="📍 Indirizzo",           value=dati["indirizzo"],     inline=True)
+    embed.add_field(name="💰 Affitto Settimanale", value=f"**${dati['affitto']}**", inline=True)
+    embed.add_field(name="📌 Responsabilità",      value=dati["responsabilita"], inline=False)
+    embed.add_field(name="💼 Occupazione e Reddito IC", value=dati["occupazione"], inline=False)
+    embed.add_field(name="✍️ Firme", value=f"{citt_firma}\n{dir_firma}", inline=False)
+
+    if stato["cittadino"] and stato["direttore"]:
+        embed.add_field(
+            name="✅ CONTRATTO UFFICIALE",
+            value="Il contratto è stato **firmato da entrambe le parti** ed è ora ufficialmente valido.",
+            inline=False
+        )
+        embed.set_footer(text="Dynasty 8 Real Estate — Contratto Ufficiale ✅")
+        # Disabilita i bottoni
+        view = discord.ui.View()
+        await interaction.message.edit(embed=embed, view=view)
+    else:
+        embed.set_footer(text="Dynasty 8 Real Estate — In attesa di firme")
+        await interaction.message.edit(embed=embed)
+
+
+@bot.tree.command(name="contratto-affitto", description="🏠 Crea un contratto d'affitto [Solo Direttore Dynasty 8]")
+async def contratto_affitto_cmd(interaction: discord.Interaction):
+    if not any(r.id in (RUOLO_DIRETTORE_DYNASTY8, RUOLO_FIRMA_DYNASTY8) for r in interaction.user.roles):
+        return await interaction.response.send_message(
+            "❌ Solo il Direttore Dynasty 8 può emettere contratti d'affitto.", ephemeral=True
+        )
+    await interaction.response.send_modal(ModalContrattoAffitto())
 
 
 # --- AVVIO DEL BOT ---
