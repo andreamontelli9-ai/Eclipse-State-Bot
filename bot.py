@@ -5324,8 +5324,10 @@ async def supermarket(interaction: discord.Interaction):
 # 🏢 SISTEMA BANDI DI LAVORO
 # ==========================================
 
-CH_BANDI_CANDIDATURE  = 1532891367611826187  # canale dove arrivano le candidature
+CH_BANDI_CANDIDATURE  = 1532891367611826187  # canale log dove arrivano le candidature
 CH_BANDI_ESITI        = 1532127581409640478  # canale dove arriva accettato/rifiutato
+CH_FORUM_BANDI        = 1538353622654517398  # canale forum con i post/thread dei bandi
+RUOLO_STAFF_BANDI     = 1532126930151669952  # ruolo che può accettare/rifiutare candidature
 
 LAVORI_EMOJI = {
     "ammunation":    "🔫",
@@ -5980,1368 +5982,174 @@ class ViewEliminaBando(discord.ui.View):
         self.add_item(SelectEliminaBando())
 
 
-# ─── COMANDO /bandi ────────────────────────────────────────────────────────────
+# ─── SISTEMA CANDIDATURE DAL FORUM BANDI ──────────────────────────────────────
+# Quando un player scrive in un thread del canale forum Bandi-Lavorativi,
+# il bot: 1) manda la candidatura nel log con bottoni Accetta/Rifiuta
+#          2) cancella il thread dal forum
 
-@bot.tree.command(name="bandi", description="📋 Pubblica il pannello bandi di lavoro (Solo Staff)")
-@is_staff_or_direttore()
-async def bandi_cmd(interaction: discord.Interaction):
-    embed = discord.Embed(
-        title="🏢 | BANDI DI LAVORO — ECLIPSE CITY RP",
-        color=discord.Color.from_rgb(255, 107, 53),
-        timestamp=datetime.now()
-    )
-    embed.set_thumbnail(url=LOGO_SERVER)
+class ViewEsitoForumBando(discord.ui.View):
+    """Bottoni Accetta/Rifiuta che appaiono nel log bandi per le candidature da forum."""
 
-    if bandi_personalizzati:
-        lista_bandi = "\n".join(
-            f"📋 **{b['titolo']}** — {b['descrizione'][:60]}"
-            for b in bandi_personalizzati.values()
-        )
-    else:
-        lista_bandi = "_Nessun bando attivo al momento._"
-
-    embed.description = (
-        "➢ **Benvenuto nel portale bandi di lavoro di Eclipse City RP!**\n\n"
-        "Seleziona il bando per cui vuoi candidarti dal menu qui sotto.\n"
-        "Compila il modulo con cura — lo staff valuterà la tua candidatura e riceverai una risposta in DM.\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        + lista_bandi +
-        "\n━━━━━━━━━━━━━━━━━━━━━━━━"
-    )
-    embed.set_footer(text="Eclipse City RP — Portale Lavori")
-    await interaction.channel.send(embed=embed, view=ViewBandi())
-    await interaction.response.send_message("✅ Pannello bandi pubblicato.", ephemeral=True)
-
-
-# ══════════════════════════════════════════════════════════════════
-# 🏛️  SISTEMA BANDO GOVERNO — Un embed per ogni fazione
-#     Comando: /bando-governo
-#     Pubblica un pannello separato per ogni fazione con bottone
-#     "Compila Modulo" che apre il modal specifico.
-#     Le candidature arrivano in CH_BANDI_CANDIDATURE con
-#     i bottoni Accetta / Rifiuta.
-# ══════════════════════════════════════════════════════════════════
-
-FAZIONI_BANDO_GOV = [
-    {
-        "key":         "mspd",
-        "emoji":       "👮",
-        "nome":        "MSPD — Metropolitan Special Police Department",
-        "descrizione": (
-            "La **Metropolitan Special Police Department** apre ufficialmente "
-            "le candidature per il reclutamento di nuovi agenti di polizia.\n\n"
-            "Il corpo di polizia è il pilastro dell'ordine pubblico della città: "
-            "garantisce la sicurezza dei cittadini, gestisce le emergenze, "
-            "conduce indagini e mantiene la legalità su ogni strada.\n"
-            "Cerchiamo individui determinati, disciplinati e pronti a servire "
-            "la comunità con onestà e professionalità."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server**.",
-            "🤝 Dimostrare maturità, serietà e rispetto verso tutti.",
-            "⏰ Garantire **attività costante** e buona disponibilità oraria.",
-            "🚫 **Fedina penale IC pulita** — nessun crimine grave o precedente rilevante.",
-            "🧠 Saper mantenere la **calma sotto pressione** e prendere decisioni rapide.",
-            "🎯 Attitudine al lavoro di squadra e rispetto della catena di comando.",
-        ],
-        "modal":       "MSPD",
-        "colore":      0x1a6fc4,
-    },
-    {
-        "key":         "msfd",
-        "emoji":       "🚒",
-        "nome":        "MSFD — Metropolitan Special Fire Department",
-        "descrizione": (
-            "Il **Metropolitan Special Fire Department** apre ufficialmente "
-            "le candidature per nuovi vigili del fuoco e soccorritori.\n\n"
-            "L'MSFD è il dipartimento di emergenza che interviene in ogni situazione "
-            "di pericolo: incendi, incidenti stradali, esplosioni e salvataggi. "
-            "I nostri operatori rischiano ogni giorno la propria vita per proteggere "
-            "quella degli altri.\n"
-            "Cerchiamo persone coraggiose, fisicamente e mentalmente preparate, "
-            "capaci di lavorare in team nelle situazioni più critiche."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server**.",
-            "🤝 Dimostrare maturità, serietà e rispetto verso tutti.",
-            "⏰ Garantire **attività costante** e disponibilità nei turni.",
-            "💪 Buona **condizione fisica IC** e resistenza allo stress.",
-            "🚨 Capacità di intervento rapido e gestione delle emergenze.",
-            "🎯 Spirito di sacrificio e senso del dovere verso la comunità.",
-        ],
-        "modal":       "MSFD",
-        "colore":      0xe05c00,
-    },
-    {
-        "key":         "ems",
-        "emoji":       "🚑",
-        "nome":        "EMS — Emergency Medical Services",
-        "descrizione": (
-            "Gli **Emergency Medical Services** aprono ufficialmente "
-            "le candidature per medici, paramedici e infermieri.\n\n"
-            "L'EMS è il servizio medico d'emergenza della città: i nostri operatori "
-            "intervengono su ogni ferito, gestiscono le crisi sanitarie e garantiscono "
-            "le cure sul campo prima del ricovero ospedaliero.\n"
-            "Cerchiamo figure con preparazione medica IC, sangue freddo e una "
-            "profonda vocazione al soccorso del prossimo."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server**.",
-            "🤝 Dimostrare maturità, empatia e professionalità.",
-            "⏰ Garantire **attività costante** e reperibilità nei turni.",
-            "🩺 Conoscenza base del **sistema medico RP** del server.",
-            "🧠 Capacità di lavorare con calma anche in situazioni caotiche.",
-            "💉 Nessun precedente penale IC che comprometta l'idoneità al ruolo.",
-        ],
-        "modal":       "EMS",
-        "colore":      0xc0392b,
-    },
-    {
-        "key":         "banca",
-        "emoji":       "🏦",
-        "nome":        "Pacific Bank — Istituto Bancario",
-        "descrizione": (
-            "La **Pacific Bank** apre ufficialmente le selezioni "
-            "per nuovi impiegati e dirigenti bancari.\n\n"
-            "La banca è il cuore dell'economia della città: gestisce "
-            "conti correnti, finanziamenti, transazioni e operazioni "
-            "riservate per privati e aziende. "
-            "Un impiegato della Pacific Bank rappresenta fiducia, riservatezza "
-            "e competenza in ogni interazione con la clientela.\n"
-            "Cerchiamo persone affidabili, precise e con ottime doti relazionali."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server**.",
-            "🤝 Dimostrare professionalità, educazione e rispetto verso i clienti.",
-            "⏰ Garantire **attività costante** e puntualità nei turni di lavoro.",
-            "💼 Attitudine alla **gestione finanziaria IC** e al lavoro d'ufficio.",
-            "🔒 Massima **riservatezza** sulle operazioni bancarie dei clienti.",
-            "🚫 Fedina penale IC pulita — non è accettabile un passato criminale.",
-        ],
-        "modal":       "Banca",
-        "colore":      0xd4af37,
-    },
-    {
-        "key":         "avvocato",
-        "emoji":       "⚖️",
-        "nome":        "Studio Legale — Avvocato",
-        "descrizione": (
-            "Lo **Studio Legale** apre ufficialmente le selezioni "
-            "per nuovi avvocati difensori e consulenti legali.\n\n"
-            "L'avvocato è la voce di chi non può difendersi da solo: "
-            "assiste i clienti durante i processi, redige contratti, "
-            "negozia accordi e garantisce che ogni cittadino abbia "
-            "accesso a una difesa giusta e competente.\n"
-            "Cerchiamo menti analitiche, eloquenti e con una profonda "
-            "conoscenza del codice penale e civile IC."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server** e il sistema legale IC.",
-            "🤝 Dimostrare professionalità, eloquenza e rispetto delle norme.",
-            "⏰ Garantire **attività costante** e presenza alle udienze.",
-            "📚 Conoscenza solida del **codice penale e civile IC** del server.",
-            "🧠 Capacità di costruire argomentazioni logiche e difese convincenti.",
-            "✍️ Saper redigere atti legali, contratti e memorie difensive in modo corretto.",
-        ],
-        "modal":       "Avvocato",
-        "colore":      0x6c3483,
-    },
-    {
-        "key":         "giudice",
-        "emoji":       "🔨",
-        "nome":        "Tribunale — Giudice",
-        "descrizione": (
-            "Il **Tribunale della Città** apre ufficialmente le selezioni "
-            "per nuovi giudici e magistrati.\n\n"
-            "Il giudice è la figura suprema dell'apparato giudiziario: "
-            "presiede le udienze, valuta le prove, ascolta le parti e "
-            "pronuncia sentenze che devono essere giuste, imparziali e "
-            "motivate nel rispetto della legge IC.\n"
-            "È un ruolo di altissima responsabilità che richiede esperienza "
-            "legale, equità e assoluta integrità morale."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server** e il codice giudiziario IC.",
-            "🤝 Dimostrare imparzialità, equilibrio e autorevolezza.",
-            "⏰ Garantire **attività costante** e disponibilità alle udienze programmate.",
-            "📚 Esperienza pregressa come **avvocato o nel sistema legale IC** (preferibile).",
-            "🧠 Capacità di analisi delle prove, valutazione dei testimoni e motivazione delle sentenze.",
-            "⚖️ Assoluta integrità morale IC — nessun conflitto di interesse o precedente penale.",
-        ],
-        "modal":       "Giudice",
-        "colore":      0x4a235a,
-    },
-    {
-        "key":         "concessionario",
-        "emoji":       "🚗",
-        "nome":        "Concessionario — Vendita Veicoli",
-        "descrizione": (
-            "Il **Concessionario** apre ufficialmente le selezioni "
-            "per nuovi venditori e consulenti automotive.\n\n"
-            "Il concessionario è il punto di riferimento per chiunque "
-            "voglia acquistare, finanziare o vendere un veicolo in città. "
-            "I nostri consulenti guidano il cliente nella scelta, illustrano "
-            "le caratteristiche dei modelli e gestiscono i contratti di vendita "
-            "e i piani di finanziamento.\n"
-            "Cerchiamo persone dinamiche, persuasive e appassionate di automobili."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server**.",
-            "🤝 Dimostrare professionalità, cortesia e ottime doti commerciali.",
-            "⏰ Garantire **attività costante** e presenza durante le ore di punta.",
-            "🚗 Buona conoscenza del **parco veicoli RP** disponibile in città.",
-            "💼 Capacità di gestire trattative, prezzi e contratti di vendita.",
-            "😊 Spiccate doti relazionali e orientamento al cliente.",
-        ],
-        "modal":       "Concessionario",
-        "colore":      0x1e8449,
-    },
-    {
-        "key":         "meccanico",
-        "emoji":       "🔧",
-        "nome":        "Officina — Meccanico",
-        "descrizione": (
-            "L'**Officina** apre ufficialmente le selezioni "
-            "per nuovi meccanici, carrozzieri e preparatori.\n\n"
-            "L'officina è il luogo dove i veicoli tornano in vita: "
-            "dai semplici tagliandi alle riparazioni dopo incidenti, "
-            "dalla preparazione racing alle verniciature personalizzate. "
-            "I nostri meccanici sono tecnici qualificati che sanno lavorare "
-            "con ogni tipo di veicolo, terrestre o aereo.\n"
-            "Cerchiamo persone precise, appassionate e capaci di lavorare sotto pressione."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server**.",
-            "🤝 Dimostrare serietà, precisione e affidabilità nei confronti dei clienti.",
-            "⏰ Garantire **attività costante** e puntualità nelle consegne.",
-            "🔧 Conoscenza base dei **sistemi meccanici IC** e delle riparazioni.",
-            "🏎️ Passione per i veicoli e capacità di distinguere i diversi modelli.",
-            "🎨 Esperienza o interesse in **preparazioni estetiche e performance** (preferibile).",
-        ],
-        "modal":       "Meccanico",
-        "colore":      0x717d7e,
-    },
-    {
-        "key":         "ammunation",
-        "emoji":       "🔫",
-        "nome":        "Ammunation — Armeria Ufficiale",
-        "descrizione": (
-            "**Ammunation** apre ufficialmente le selezioni "
-            "per nuovi addetti alla vendita e consulenti balistici.\n\n"
-            "Ammunation è il negozio di armi più grande e rinomato della città: "
-            "vendita di armi da fuoco, munizioni, accessori e corsi di sicurezza. "
-            "Il personale deve essere in grado di consigliare il cliente, "
-            "verificare i documenti e rispettare scrupolosamente la normativa "
-            "sulle armi vigente nel server.\n"
-            "Cerchiamo persone responsabili, professionali e conoscitori delle armi RP."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server** e le norme sulle armi IC.",
-            "🤝 Dimostrare responsabilità, serietà e rispetto delle procedure di vendita.",
-            "⏰ Garantire **attività costante** e presenza nei turni assegnati.",
-            "🔫 Buona conoscenza del **catalogo armi IC** e delle relative caratteristiche.",
-            "📄 Capacità di verificare porto d'armi e documenti prima di ogni vendita.",
-            "🚫 Fedina penale IC pulita — nessuna condanna per crimini violenti o traffico d'armi.",
-        ],
-        "modal":       "Generico",
-        "colore":      0x922b21,
-    },
-    {
-        "key":         "dynasty8",
-        "emoji":       "🏠",
-        "nome":        "Dynasty 8 — Agenzia Immobiliare",
-        "descrizione": (
-            "**Dynasty 8** apre ufficialmente le selezioni "
-            "per nuovi agenti immobiliari e consulenti del patrimonio.\n\n"
-            "Dynasty 8 è la più esclusiva agenzia immobiliare della città: "
-            "gestisce la compravendita di appartamenti, ville, terreni e "
-            "proprietà commerciali. I nostri agenti supportano i clienti "
-            "dall'analisi del fabbisogno fino alla firma del contratto, "
-            "garantendo trasparenza e competenza in ogni trattativa.\n"
-            "Cerchiamo persone ambiziose, comunicative e con il fiuto per gli affari."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server**.",
-            "🤝 Dimostrare professionalità, eleganza e doti negoziali.",
-            "⏰ Garantire **attività costante** e disponibilità agli appuntamenti con i clienti.",
-            "🏠 Conoscenza del **mercato immobiliare IC** e delle proprietà disponibili in città.",
-            "📑 Capacità di gestire contratti, valutazioni e documentazione legale IC.",
-            "💼 Orientamento al risultato e capacità di fidelizzare la clientela.",
-        ],
-        "modal":       "Generico",
-        "colore":      0x148f77,
-    },
-    {
-        "key":         "minimarket",
-        "emoji":       "🛒",
-        "nome":        "Minimarket — Negozio Alimentari",
-        "descrizione": (
-            "Il **Minimarket** apre ufficialmente le selezioni "
-            "per nuovi commessi, cassieri e responsabili di reparto.\n\n"
-            "Il minimarket è il punto di riferimento quotidiano per tutti "
-            "i cittadini: alimentari, bevande, articoli di prima necessità "
-            "e item speciali. Il personale garantisce un servizio rapido, "
-            "cortese e l'efficiente gestione dello stock in magazzino.\n"
-            "Cerchiamo persone dinamiche, organizzate e con il sorriso pronto."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server**.",
-            "🤝 Dimostrare cordialità, efficienza e rispetto verso i clienti.",
-            "⏰ Garantire **attività costante** e puntualità nei turni.",
-            "🛒 Capacità di gestire lo **stock del magazzino** e i rifornimenti.",
-            "💰 Precisione nella gestione della cassa e delle transazioni.",
-            "😊 Predisposizione al contatto con il pubblico e al lavoro in team.",
-        ],
-        "modal":       "Generico",
-        "colore":      0xd35400,
-    },
-    {
-        "key":         "vanilla",
-        "emoji":       "🍸",
-        "nome":        "Vanilla Unicorn — Locale Notturno",
-        "descrizione": (
-            "Il **Vanilla Unicorn** apre ufficialmente le selezioni "
-            "per barman, hostess, buttafuori e personale di sala.\n\n"
-            "Il Vanilla Unicorn è il locale notturno più esclusivo e discusso "
-            "della città: musica, cocktail di qualità, luci soffuse e "
-            "un'atmosfera unica che attira la clientela più variegata. "
-            "Il personale è il cuore pulsante del locale e deve saper gestire "
-            "ogni situazione con eleganza e professionalità.\n"
-            "Cerchiamo figure carismatiche, affidabili e con esperienza nel settore."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server**.",
-            "🤝 Dimostrare carisma, professionalità e gestione delle relazioni con i clienti.",
-            "⏰ Garantire **attività costante**, specialmente nelle ore serali e notturne.",
-            "🍹 Conoscenza base della **cocktailistica IC** e dei servizi di sala (per barman).",
-            "💪 Capacità di **gestione dei conflitti** e mantenimento dell'ordine nel locale (per buttafuori).",
-            "🎭 Spiccata personalità, discrezione e adattabilità all'ambiente del locale.",
-        ],
-        "modal":       "Ristorante",
-        "colore":      0x7d3c98,
-    },
-    {
-        "key":         "casino",
-        "emoji":       "🎰",
-        "nome":        "Diamond Casino & Resort",
-        "descrizione": (
-            "Il **Diamond Casino & Resort** apre ufficialmente le selezioni "
-            "per croupier, dealer, personale di sala e sicurezza.\n\n"
-            "Il Diamond Casino è il simbolo del lusso e dell'intrattenimento "
-            "in città: tavoli da gioco, slot machine, sala VIP e ristorante "
-            "interno. Il personale del casino incarna eleganza, professionalità "
-            "e assoluta onestà — qualsiasi tentativo di truffa o collusione "
-            "porta all'espulsione immediata.\n"
-            "Cerchiamo figure impeccabili, attente ai dettagli e con esperienza nel settore."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server**.",
-            "🤝 Dimostrare eleganza, professionalità e resistenza alla tentazione di abusi.",
-            "⏰ Garantire **attività costante** e presenza nei turni, incluse le ore serali.",
-            "🃏 Conoscenza delle **regole dei giochi da tavolo IC** (poker, blackjack, roulette).",
-            "👁️ Attenzione ai dettagli per individuare **comportamenti sospetti** dei clienti.",
-            "🚫 Fedina penale IC pulita — nessuna condanna per frode, truffa o crimini finanziari.",
-        ],
-        "modal":       "Casino",
-        "colore":      0xd4ac0d,
-    },
-    {
-        "key":         "pegasus",
-        "emoji":       "✈️",
-        "nome":        "Pegasus — Servizi Aerei e Nautici",
-        "descrizione": (
-            "**Pegasus** apre ufficialmente le selezioni "
-            "per piloti, marinai, operatori a terra e assistenti di volo.\n\n"
-            "Pegasus è la compagnia leader nei trasporti aerei e nautici della città: "
-            "gestisce charter privati, trasporti merci, elicotteri e imbarcazioni "
-            "di lusso. I nostri operatori garantiscono sicurezza, puntualità "
-            "e un servizio di altissimo livello in ogni condizione atmosferica.\n"
-            "Cerchiamo professionisti qualificati, con esperienza IC di volo o navigazione."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server**.",
-            "🤝 Dimostrare serietà, professionalità e rispetto dei protocolli di sicurezza.",
-            "⏰ Garantire **attività costante** e disponibilità alle missioni di trasporto.",
-            "✈️ Possedere la **licenza di volo o nautica IC** appropriata per il ruolo.",
-            "🧭 Conoscenza delle **rotte aeree e marittime** della città e dintorni.",
-            "🌧️ Capacità di operare in sicurezza in **condizioni avverse** e situazioni di emergenza.",
-        ],
-        "modal":       "Pegasus",
-        "colore":      0x1a5276,
-    },
-    {
-        "key":         "isla_de_oro",
-        "emoji":       "🍽️",
-        "nome":        "Isla De Oro — Ristorante di Lusso",
-        "descrizione": (
-            "**Isla De Oro** apre ufficialmente le selezioni "
-            "per chef, sous-chef, camerieri e sommelier.\n\n"
-            "Isla De Oro è il ristorante fine dining più prestigioso della città: "
-            "cucina internazionale di altissimo livello, ingredienti ricercati, "
-            "cantina con vini pregiati e un'esperienza culinaria indimenticabile "
-            "per ogni ospite. Il personale è formato per garantire un servizio "
-            "impeccabile dalla mise en place alla chiusura del locale.\n"
-            "Cerchiamo veri professionisti della ristorazione con passione e talento."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server**.",
-            "🤝 Dimostrare eleganza, raffinatezza e rispetto verso ogni ospite.",
-            "⏰ Garantire **attività costante** e puntualità nei turni di servizio.",
-            "👨‍🍳 Conoscenza della **cucina IC** e delle tecniche di preparazione (per chef).",
-            "🍷 Capacità di consigliare abbinamenti vino-cibo e gestione della cantina (per sommelier).",
-            "🎩 Cura dell'aspetto, del linguaggio e del protocollo di sala in ogni momento.",
-        ],
-        "modal":       "Ristorante",
-        "colore":      0xca6f1e,
-    },
-    {
-        "key":         "import_export",
-        "emoji":       "📦",
-        "nome":        "Import-Export — Commercio Internazionale",
-        "descrizione": (
-            "La società **Import-Export** apre ufficialmente le selezioni "
-            "per operatori logistici, autisti e coordinatori commerciali.\n\n"
-            "Import-Export gestisce il flusso di merci, veicoli e materiali "
-            "pregiati che entrano ed escono dalla città: magazzinaggio, "
-            "trasporto su strada e via mare, sdoganamento e gestione degli ordini "
-            "per conto di aziende e privati. È un lavoro dinamico, che richiede "
-            "prontezza di riflessi e discrezione assoluta.\n"
-            "Cerchiamo persone affidabili, discrete e capaci di lavorare sotto pressione."
-        ),
-        "requisiti":   [
-            "🔞 Avere almeno **14 anni** anagrafici.",
-            "📋 Conoscere approfonditamente il **regolamento del server**.",
-            "🤝 Dimostrare affidabilità, discrezione e rispetto delle scadenze.",
-            "⏰ Garantire **attività costante** e flessibilità negli orari.",
-            "🚛 Capacità di guidare veicoli di trasporto pesante IC e gestire le consegne.",
-            "📊 Conoscenza base della **logistica IC** e dei processi di carico/scarico.",
-            "🔐 Assoluta riservatezza sul contenuto dei carichi e sulle operazioni aziendali.",
-        ],
-        "modal":       "Generico",
-        "colore":      0x117a65,
-    },
-]
-
-# ─── MODAL BANDO GOVERNO: MSPD ────────────────────────────────────────────────
-class _ModalGovMSPD(discord.ui.Modal):
-    nome_eta = discord.ui.TextInput(
-        label="👤 Nome, Cognome ed Età IC",
-        placeholder="Es. Marco Rossi, 28 anni",
-        required=True, max_length=60
-    )
-    ruolo_desiderato = discord.ui.TextInput(
-        label="🎖️ Ruolo/Grado per cui ti candidi",
-        placeholder="Es. Agente Scelto, Assistente, Vice Sovrintendente",
-        required=True, max_length=80
-    )
-    motivazione = discord.ui.TextInput(
-        label="🎯 Perché vuoi entrare nell'MSPD?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Spiega in modo dettagliato cosa ti spinge a candidarti, "
-            "quali sono i tuoi obiettivi all'interno del corpo di polizia "
-            "e cosa pensi di poter portare alla fazione."
-        ),
-        required=True, max_length=600
-    )
-    esperienza = discord.ui.TextInput(
-        label="📋 Esperienza in forze dell'ordine o fazioni simili",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Hai già fatto il poliziotto in altri server RP? "
-            "Hai esperienza militare IC? Descrivi ruoli ricoperti, "
-            "server frequentati e competenze acquisite."
-        ),
-        required=True, max_length=500
-    )
-    casellario = discord.ui.TextInput(
-        label="🚔 Situazione penale IC e punti di forza personali",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Hai precedenti penali IC? (Sì/No — dettaglia se sì) "
-            "Quali sono i tuoi punti di forza come potenziale agente? "
-            "Come gestiresti una situazione di conflitto ad alto rischio?"
-        ),
-        required=True, max_length=500
-    )
-
-    def __init__(self, fazione: dict):
-        self.fazione = fazione
-        super().__init__(title="👮 Candidatura MSPD — Modulo Ufficiale")
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await _invia_candidatura_governo(interaction, self.fazione, {
-            "👤 Nome, Cognome ed Età IC":                self.nome_eta.value,
-            "🎖️ Ruolo/Grado richiesto":                  self.ruolo_desiderato.value,
-            "🎯 Motivazione alla candidatura":            self.motivazione.value,
-            "📋 Esperienze pregresse":                    self.esperienza.value,
-            "🚔 Situazione penale & punti di forza":      self.casellario.value,
-        })
-
-# ─── MODAL BANDO GOVERNO: MSFD ────────────────────────────────────────────────
-class _ModalGovMSFD(discord.ui.Modal):
-    nome_eta = discord.ui.TextInput(
-        label="👤 Nome, Cognome ed Età IC",
-        placeholder="Es. Luca Bianchi, 25 anni",
-        required=True, max_length=60
-    )
-    ruolo_desiderato = discord.ui.TextInput(
-        label="🚒 Ruolo per cui ti candidi",
-        placeholder="Es. Pompiere, Operatore di Soccorso, Autista",
-        required=True, max_length=80
-    )
-    motivazione = discord.ui.TextInput(
-        label="🎯 Perché vuoi entrare nell'MSFD?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Descrivi cosa ti ha spinto a scegliere i Vigili del Fuoco, "
-            "quali valori ti guidano in questa scelta e cosa vorresti "
-            "ottenere all'interno della fazione."
-        ),
-        required=True, max_length=600
-    )
-    esperienza = discord.ui.TextInput(
-        label="📋 Esperienza in soccorso, emergenze o fazioni simili",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Hai già ricoperto ruoli di soccorso in altri server RP? "
-            "Conosci le procedure di intervento su incendi o incidenti stradali? "
-            "Elenca le esperienze rilevanti che hai maturato."
-        ),
-        required=True, max_length=500
-    )
-    condizione_fisica = discord.ui.TextInput(
-        label="💪 Condizione fisica IC e gestione dello stress",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Descrivi la condizione fisica del tuo personaggio IC. "
-            "Come reagisce sotto pressione? "
-            "Sa lavorare in squadra anche nelle situazioni più pericolose?"
-        ),
-        required=True, max_length=400
-    )
-
-    def __init__(self, fazione: dict):
-        self.fazione = fazione
-        super().__init__(title="🚒 Candidatura MSFD — Modulo Ufficiale")
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await _invia_candidatura_governo(interaction, self.fazione, {
-            "👤 Nome, Cognome ed Età IC":             self.nome_eta.value,
-            "🚒 Ruolo richiesto":                     self.ruolo_desiderato.value,
-            "🎯 Motivazione alla candidatura":         self.motivazione.value,
-            "📋 Esperienze pregresse":                 self.esperienza.value,
-            "💪 Condizione fisica & gestione stress":  self.condizione_fisica.value,
-        })
-
-# ─── MODAL BANDO GOVERNO: EMS ─────────────────────────────────────────────────
-class _ModalGovEMS(discord.ui.Modal):
-    nome_eta = discord.ui.TextInput(
-        label="👤 Nome, Cognome ed Età IC",
-        placeholder="Es. Sara Conti, 30 anni",
-        required=True, max_length=60
-    )
-    ruolo_desiderato = discord.ui.TextInput(
-        label="🩺 Ruolo per cui ti candidi",
-        placeholder="Es. Paramedico, Medico d'Urgenza, Chirurgo",
-        required=True, max_length=80
-    )
-    motivazione = discord.ui.TextInput(
-        label="🎯 Perché vuoi entrare nell'EMS?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Spiega la tua vocazione al soccorso medico IC, "
-            "cosa ti ha spinto a scegliere questo ruolo e "
-            "quali obiettivi professionali hai all'interno dell'EMS."
-        ),
-        required=True, max_length=600
-    )
-    competenze_mediche = discord.ui.TextInput(
-        label="💉 Competenze mediche IC e protocolli di emergenza",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Conosci i protocolli di pronto intervento sul campo IC? "
-            "Hai studiato medicina o paramedica IC? "
-            "Descrivi le tue conoscenze tecniche e come le applicheresti."
-        ),
-        required=True, max_length=500
-    )
-    scenario = discord.ui.TextInput(
-        label="🚨 Scenario: come gestiresti un'emergenza multipla?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Tre feriti gravi nello stesso luogo, solo tu disponibile. "
-            "Descrivi come stabilisci le priorità di intervento, "
-            "cosa comunichi alla centrale e come gestisci la situazione."
-        ),
-        required=True, max_length=500
-    )
-
-    def __init__(self, fazione: dict):
-        self.fazione = fazione
-        super().__init__(title="🚑 Candidatura EMS — Modulo Ufficiale")
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await _invia_candidatura_governo(interaction, self.fazione, {
-            "👤 Nome, Cognome ed Età IC":          self.nome_eta.value,
-            "🩺 Ruolo richiesto":                  self.ruolo_desiderato.value,
-            "🎯 Motivazione alla candidatura":      self.motivazione.value,
-            "💉 Competenze mediche IC":             self.competenze_mediche.value,
-            "🚨 Scenario emergenza multipla":       self.scenario.value,
-        })
-
-# ─── MODAL BANDO GOVERNO: BANCA ───────────────────────────────────────────────
-class _ModalGovBanca(discord.ui.Modal):
-    nome_eta = discord.ui.TextInput(
-        label="👤 Nome, Cognome ed Età IC",
-        placeholder="Es. Giulia Ferrari, 27 anni",
-        required=True, max_length=60
-    )
-    ruolo_desiderato = discord.ui.TextInput(
-        label="💼 Ruolo per cui ti candidi",
-        placeholder="Es. Impiegato Bancario, Consulente Finanziario, Cassiere",
-        required=True, max_length=80
-    )
-    motivazione = discord.ui.TextInput(
-        label="🎯 Perché vuoi lavorare alla Pacific Bank?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Descrivi le ragioni che ti spingono a candidarti in banca IC, "
-            "come immagini il tuo ruolo all'interno dell'istituto "
-            "e quali competenze ritieni di poter offrire."
-        ),
-        required=True, max_length=600
-    )
-    esperienza_finanziaria = discord.ui.TextInput(
-        label="💰 Esperienza in ambito finanziario o bancario IC",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Hai già lavorato in banca o in ambito finanziario in altri server RP? "
-            "Conosci il sistema dei conti correnti e delle transazioni IC del server? "
-            "Descrivi le tue esperienze rilevanti."
-        ),
-        required=True, max_length=500
-    )
-    riservatezza = discord.ui.TextInput(
-        label="🔒 Gestione della riservatezza e scenario pratico",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Un cliente ti chiede informazioni sul conto di un'altra persona. "
-            "Come gestisci la situazione? "
-            "Cosa faresti se scoprissi un movimento sospetto su un conto?"
-        ),
-        required=True, max_length=400
-    )
-
-    def __init__(self, fazione: dict):
-        self.fazione = fazione
-        super().__init__(title="🏦 Candidatura Pacific Bank — Modulo Ufficiale")
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await _invia_candidatura_governo(interaction, self.fazione, {
-            "👤 Nome, Cognome ed Età IC":              self.nome_eta.value,
-            "💼 Ruolo richiesto":                      self.ruolo_desiderato.value,
-            "🎯 Motivazione alla candidatura":          self.motivazione.value,
-            "💰 Esperienza finanziaria/bancaria IC":    self.esperienza_finanziaria.value,
-            "🔒 Riservatezza & scenario pratico":       self.riservatezza.value,
-        })
-
-# ─── MODAL BANDO GOVERNO: AVVOCATO ────────────────────────────────────────────
-class _ModalGovAvvocato(discord.ui.Modal):
-    nome_eta = discord.ui.TextInput(
-        label="👤 Nome, Cognome ed Età IC",
-        placeholder="Es. Antonio Mancini, 35 anni",
-        required=True, max_length=60
-    )
-    specializzazione = discord.ui.TextInput(
-        label="⚖️ Specializzazione e ruolo richiesto",
-        placeholder="Es. Penalista, Civilista, Avvocato d'Ufficio",
-        required=True, max_length=80
-    )
-    motivazione = discord.ui.TextInput(
-        label="🎯 Perché vuoi diventare avvocato IC?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Spiega cosa ti ha portato a scegliere la professione forense IC, "
-            "quale visione della giustizia hai e come intendi esercitare "
-            "il tuo ruolo di difensore all'interno della città."
-        ),
-        required=True, max_length=600
-    )
-    conoscenza_legale = discord.ui.TextInput(
-        label="📚 Conoscenza del codice penale/civile IC e casi trattati",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Qual è il tuo livello di conoscenza del sistema legale IC del server? "
-            "Hai già difeso o assistito clienti in processi RP? "
-            "Descrivi i casi più rilevanti che hai affrontato."
-        ),
-        required=True, max_length=500
-    )
-    caso_pratico = discord.ui.TextInput(
-        label="🏛️ Caso pratico: come costruisci una difesa?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Il tuo cliente è accusato di omicidio colposo IC senza prove concrete. "
-            "Come imposti la strategia difensiva? "
-            "Quali elementi cerchi, quali testimoni convocare e come argomentate in aula?"
-        ),
-        required=True, max_length=500
-    )
-
-    def __init__(self, fazione: dict):
-        self.fazione = fazione
-        super().__init__(title="⚖️ Candidatura Avvocato — Modulo Ufficiale")
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await _invia_candidatura_governo(interaction, self.fazione, {
-            "👤 Nome, Cognome ed Età IC":          self.nome_eta.value,
-            "⚖️ Specializzazione & ruolo":         self.specializzazione.value,
-            "🎯 Motivazione alla candidatura":      self.motivazione.value,
-            "📚 Conoscenza legale IC & casi":       self.conoscenza_legale.value,
-            "🏛️ Caso pratico — strategia difensiva": self.caso_pratico.value,
-        })
-
-# ─── MODAL BANDO GOVERNO: GIUDICE ─────────────────────────────────────────────
-class _ModalGovGiudice(discord.ui.Modal):
-    nome_eta = discord.ui.TextInput(
-        label="👤 Nome, Cognome ed Età IC",
-        placeholder="Es. Roberto Esposito, 45 anni",
-        required=True, max_length=60
-    )
-    percorso_legale = discord.ui.TextInput(
-        label="📜 Percorso legale IC — esperienze come avvocato/giudice",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Hai già ricoperto ruoli legali IC in questo o altri server? "
-            "Quante udienze hai presieduto o a cui hai partecipato? "
-            "Descrivi il tuo percorso all'interno del sistema giudiziario IC."
-        ),
-        required=True, max_length=500
-    )
-    filosofia_giustizia = discord.ui.TextInput(
-        label="⚖️ La tua visione della giustizia IC",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Cosa significa per te essere un giudice imparziale? "
-            "Come bilanci la severità della legge con l'equità del caso concreto? "
-            "Descrivi i principi che guiderebbero le tue sentenze."
-        ),
-        required=True, max_length=600
-    )
-    gestione_udienza = discord.ui.TextInput(
-        label="🏛️ Come gestiresti un'udienza difficile?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "L'avvocato difensore è aggressivo, il PM fa ostruzionismo, "
-            "il pubblico è rumoroso. Come mantieni l'ordine in aula? "
-            "Quali poteri eserciti e come motivi le tue decisioni procedurali?"
-        ),
-        required=True, max_length=500
-    )
-    conflitti_interesse = discord.ui.TextInput(
-        label="🔍 Integrità e gestione dei conflitti di interesse IC",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Un imputato è un tuo amico IC. Come gestisci la situazione? "
-            "Ti astieni o procedi? "
-            "Hai mai avuto conflitti di interesse in ruoli legali precedenti?"
-        ),
-        required=True, max_length=400
-    )
-
-    def __init__(self, fazione: dict):
-        self.fazione = fazione
-        super().__init__(title="🔨 Candidatura Giudice — Modulo Ufficiale")
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await _invia_candidatura_governo(interaction, self.fazione, {
-            "👤 Nome, Cognome ed Età IC":              self.nome_eta.value,
-            "📜 Percorso legale IC":                   self.percorso_legale.value,
-            "⚖️ Visione della giustizia IC":           self.filosofia_giustizia.value,
-            "🏛️ Gestione dell'udienza":                self.gestione_udienza.value,
-            "🔍 Integrità & conflitti di interesse":   self.conflitti_interesse.value,
-        })
-
-# ─── MODAL BANDO GOVERNO: CONCESSIONARIO ──────────────────────────────────────
-class _ModalGovConcessionario(discord.ui.Modal):
-    nome_eta = discord.ui.TextInput(
-        label="👤 Nome, Cognome ed Età IC",
-        placeholder="Es. Davide Romano, 29 anni",
-        required=True, max_length=60
-    )
-    ruolo_desiderato = discord.ui.TextInput(
-        label="🚗 Ruolo per cui ti candidi",
-        placeholder="Es. Venditore, Consulente Automotive, Responsabile Showroom",
-        required=True, max_length=80
-    )
-    motivazione = discord.ui.TextInput(
-        label="🎯 Perché vuoi lavorare al Concessionario?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Spiega cosa ti appassiona del settore automotive IC, "
-            "quali sono i tuoi obiettivi come venditore "
-            "e come pensi di contribuire alle vendite del concessionario."
-        ),
-        required=True, max_length=600
-    )
-    conoscenza_veicoli = discord.ui.TextInput(
-        label="🏎️ Conoscenza del parco veicoli IC e tecniche di vendita",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Quali modelli di veicoli conosci meglio nel server RP? "
-            "Hai già venduto veicoli o gestito trattative IC? "
-            "Descrivi come presenteresti un'auto a un cliente indeciso."
-        ),
-        required=True, max_length=500
-    )
-    scenario_vendita = discord.ui.TextInput(
-        label="💼 Scenario: gestisci una trattativa difficile",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Un cliente vuole acquistare un'auto da $200.000 ma ha solo $120.000 IC. "
-            "Come gestisci la trattativa? Proponi un finanziamento? "
-            "Come convinceresti il cliente senza abbassare il prezzo?"
-        ),
-        required=True, max_length=400
-    )
-
-    def __init__(self, fazione: dict):
-        self.fazione = fazione
-        super().__init__(title="🚗 Candidatura Concessionario — Modulo Ufficiale")
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await _invia_candidatura_governo(interaction, self.fazione, {
-            "👤 Nome, Cognome ed Età IC":              self.nome_eta.value,
-            "🚗 Ruolo richiesto":                      self.ruolo_desiderato.value,
-            "🎯 Motivazione alla candidatura":          self.motivazione.value,
-            "🏎️ Conoscenza veicoli & tecniche vendita": self.conoscenza_veicoli.value,
-            "💼 Scenario trattativa difficile":         self.scenario_vendita.value,
-        })
-
-# ─── MODAL BANDO GOVERNO: MECCANICO ───────────────────────────────────────────
-class _ModalGovMeccanico(discord.ui.Modal):
-    nome_eta = discord.ui.TextInput(
-        label="👤 Nome, Cognome ed Età IC",
-        placeholder="Es. Francesco Ricci, 26 anni",
-        required=True, max_length=60
-    )
-    specializzazione = discord.ui.TextInput(
-        label="🔧 Specializzazione e ruolo richiesto",
-        placeholder="Es. Meccanico, Carrozziere, Preparatore Racing",
-        required=True, max_length=80
-    )
-    motivazione = discord.ui.TextInput(
-        label="🎯 Perché vuoi lavorare all'Officina?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Cosa ti appassiona della meccanica IC? "
-            "Come mai hai scelto questo lavoro per il tuo personaggio "
-            "e cosa vorresti specializzarti nel tempo?"
-        ),
-        required=True, max_length=600
-    )
-    competenze_tecniche = discord.ui.TextInput(
-        label="⚙️ Competenze tecniche IC e veicoli su cui hai lavorato",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Quali riparazioni sai eseguire IC (motore, carrozzeria, sospensioni)? "
-            "Hai già lavorato su veicoli particolari come supercar, moto o aerei? "
-            "Descrivi il tuo livello tecnico con esempi concreti."
-        ),
-        required=True, max_length=500
-    )
-    scenario_riparazione = discord.ui.TextInput(
-        label="🚨 Scenario: veicolo sinistrato da recuperare urgentemente",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Un cliente porta un'auto dopo un incidente grave: "
-            "telaio deformato, motore danneggiato, pneumatici distrutti. "
-            "Come procedi nella diagnosi? "
-            "Come comunichi i tempi e i costi al cliente?"
-        ),
-        required=True, max_length=400
-    )
-
-    def __init__(self, fazione: dict):
-        self.fazione = fazione
-        super().__init__(title="🔧 Candidatura Meccanico — Modulo Ufficiale")
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await _invia_candidatura_governo(interaction, self.fazione, {
-            "👤 Nome, Cognome ed Età IC":              self.nome_eta.value,
-            "🔧 Specializzazione & ruolo":             self.specializzazione.value,
-            "🎯 Motivazione alla candidatura":          self.motivazione.value,
-            "⚙️ Competenze tecniche IC":               self.competenze_tecniche.value,
-            "🚨 Scenario riparazione urgente":         self.scenario_riparazione.value,
-        })
-
-# ─── MODAL BANDO GOVERNO: CASINO ──────────────────────────────────────────────
-class _ModalGovCasino(discord.ui.Modal):
-    nome_eta = discord.ui.TextInput(
-        label="👤 Nome, Cognome ed Età IC",
-        placeholder="Es. Valentina Greco, 31 anni",
-        required=True, max_length=60
-    )
-    ruolo_desiderato = discord.ui.TextInput(
-        label="🎰 Ruolo per cui ti candidi",
-        placeholder="Es. Croupier, Dealer, Hostess, Sicurezza VIP",
-        required=True, max_length=80
-    )
-    motivazione = discord.ui.TextInput(
-        label="🎯 Perché vuoi lavorare al Diamond Casino?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Descrivi cosa ti attrae di questo ambiente IC, "
-            "come immagini il tuo ruolo all'interno del casino "
-            "e quale contributo intendi portare."
-        ),
-        required=True, max_length=600
-    )
-    conoscenza_giochi = discord.ui.TextInput(
-        label="🃏 Conoscenza dei giochi da tavolo IC e gestione clienti",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Conosci le regole di poker, blackjack e roulette IC? "
-            "Hai già ricoperto ruoli simili in altri server RP? "
-            "Come gestiresti un cliente che accusa il banco di barare?"
-        ),
-        required=True, max_length=500
-    )
-    integrità = discord.ui.TextInput(
-        label="🔐 Integrità professionale e gestione situazioni critiche",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Un giocatore VIP ti offre una mazzetta per far vincere lui. "
-            "Come reagisci? "
-            "Un collega fa sparire chip dal banco — cosa fai? "
-            "Descrivi come garantiresti l'onestà del tuo operato."
-        ),
-        required=True, max_length=400
-    )
-
-    def __init__(self, fazione: dict):
-        self.fazione = fazione
-        super().__init__(title="🎰 Candidatura Diamond Casino — Modulo Ufficiale")
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await _invia_candidatura_governo(interaction, self.fazione, {
-            "👤 Nome, Cognome ed Età IC":              self.nome_eta.value,
-            "🎰 Ruolo richiesto":                      self.ruolo_desiderato.value,
-            "🎯 Motivazione alla candidatura":          self.motivazione.value,
-            "🃏 Conoscenza giochi & gestione clienti": self.conoscenza_giochi.value,
-            "🔐 Integrità & situazioni critiche":      self.integrità.value,
-        })
-
-# ─── MODAL BANDO GOVERNO: PEGASUS ─────────────────────────────────────────────
-class _ModalGovPegasus(discord.ui.Modal):
-    nome_eta = discord.ui.TextInput(
-        label="👤 Nome, Cognome ed Età IC",
-        placeholder="Es. Matteo Serra, 33 anni",
-        required=True, max_length=60
-    )
-    ruolo_licenze = discord.ui.TextInput(
-        label="✈️ Ruolo richiesto e licenze IC possedute",
-        placeholder="Es. Pilota di Linea — Licenza ATPL, Patente C (Barche e Aerei)",
-        required=True, max_length=100
-    )
-    motivazione = discord.ui.TextInput(
-        label="🎯 Perché vuoi lavorare per Pegasus?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Descrivi la tua passione per il volo o la navigazione IC, "
-            "perché hai scelto Pegasus rispetto ad altre fazioni "
-            "e quali obiettivi di carriera hai all'interno della compagnia."
-        ),
-        required=True, max_length=600
-    )
-    esperienza_volo = discord.ui.TextInput(
-        label="🛩️ Esperienza di volo/navigazione IC dettagliata",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Quante ore di volo o navigazione hai IC? "
-            "Quali tipi di veicoli hai pilotato (elicotteri, jet, barche)? "
-            "Hai già lavorato per Pegasus o compagnie simili in altri server RP?"
-        ),
-        required=True, max_length=500
-    )
-    emergenza = discord.ui.TextInput(
-        label="🚨 Scenario: emergenza in volo — come reagisci?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Sei in volo con passeggeri VIP e si perde un motore IC. "
-            "Descrivi le procedure di emergenza che adotti, "
-            "come comunichi con la torre di controllo "
-            "e come gestisci la situazione con i passeggeri a bordo."
-        ),
-        required=True, max_length=400
-    )
-
-    def __init__(self, fazione: dict):
-        self.fazione = fazione
-        super().__init__(title="✈️ Candidatura Pegasus — Modulo Ufficiale")
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await _invia_candidatura_governo(interaction, self.fazione, {
-            "👤 Nome, Cognome ed Età IC":          self.nome_eta.value,
-            "✈️ Ruolo richiesto & licenze IC":     self.ruolo_licenze.value,
-            "🎯 Motivazione alla candidatura":      self.motivazione.value,
-            "🛩️ Esperienza di volo/navigazione IC": self.esperienza_volo.value,
-            "🚨 Scenario emergenza in volo":        self.emergenza.value,
-        })
-
-# ─── MODAL BANDO GOVERNO: RISTORANTE (Vanilla + Isla de Oro) ──────────────────
-class _ModalGovRistorante(discord.ui.Modal):
-    nome_eta = discord.ui.TextInput(
-        label="👤 Nome, Cognome ed Età IC",
-        placeholder="Es. Chiara Bruno, 24 anni",
-        required=True, max_length=60
-    )
-    ruolo_desiderato = discord.ui.TextInput(
-        label="🍽️ Ruolo per cui ti candidi",
-        placeholder="Es. Chef, Sous-Chef, Cameriere, Barman, Sommelier",
-        required=True, max_length=80
-    )
-    motivazione = discord.ui.TextInput(
-        label="🎯 Perché vuoi lavorare in questo locale?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Descrivi la tua passione per la ristorazione IC, "
-            "cosa ti ha spinto a candidarti proprio in questo locale "
-            "e come immagini la tua crescita professionale qui."
-        ),
-        required=True, max_length=600
-    )
-    esperienza = discord.ui.TextInput(
-        label="👨‍🍳 Esperienza in ristorazione IC e competenze specifiche",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Hai già lavorato in ristoranti, bar o locali IC in questo o altri server RP? "
-            "Quali piatti sai preparare? Conosci le tecniche di servizio al tavolo? "
-            "Descrivi le tue competenze in modo dettagliato."
-        ),
-        required=True, max_length=500
-    )
-    situazione_critica = discord.ui.TextInput(
-        label="🔥 Scenario: serata di punta — come gestisci la pressione?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Il locale è al completo, la cucina è in ritardo di 30 minuti, "
-            "un cliente VIP è infuriato e un collega si è ammalato. "
-            "Come organizzi il servizio? "
-            "Come gestisci il cliente arrabbiato mantenendo la calma?"
-        ),
-        required=True, max_length=400
-    )
-
-    def __init__(self, fazione: dict):
-        self.fazione = fazione
-        super().__init__(title=f"🍽️ Candidatura {fazione['nome'][:35]} — Modulo")
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await _invia_candidatura_governo(interaction, self.fazione, {
-            "👤 Nome, Cognome ed Età IC":           self.nome_eta.value,
-            "🍽️ Ruolo richiesto":                   self.ruolo_desiderato.value,
-            "🎯 Motivazione alla candidatura":       self.motivazione.value,
-            "👨‍🍳 Esperienza in ristorazione IC":     self.esperienza.value,
-            "🔥 Scenario serata di punta":           self.situazione_critica.value,
-        })
-
-# ─── MODAL BANDO GOVERNO: GENERICO (Ammunation, Dynasty8, Minimarket, Imp-Exp) ─
-class _ModalGovGenerico(discord.ui.Modal):
-    nome_eta = discord.ui.TextInput(
-        label="👤 Nome, Cognome ed Età IC",
-        placeholder="Es. Mario Rossi, 25 anni",
-        required=True, max_length=60
-    )
-    ruolo_desiderato = discord.ui.TextInput(
-        label="💼 Ruolo per cui ti candidi",
-        placeholder="Es. Addetto Vendite, Agente Immobiliare, Operatore Logistico",
-        required=True, max_length=80
-    )
-    motivazione = discord.ui.TextInput(
-        label="🎯 Perché vuoi lavorare qui?",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Descrivi cosa ti ha spinto a candidarti per questa fazione IC, "
-            "quali sono le tue aspettative di crescita "
-            "e come contribuiresti al team con il tuo personaggio."
-        ),
-        required=True, max_length=600
-    )
-    esperienza = discord.ui.TextInput(
-        label="📋 Esperienza lavorativa IC rilevante",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Hai già lavorato in questa o in fazioni simili in altri server RP? "
-            "Quali competenze specifiche hai sviluppato? "
-            "Descrivi ruoli ricoperti, responsabilità e risultati ottenuti."
-        ),
-        required=True, max_length=500
-    )
-    punto_forza = discord.ui.TextInput(
-        label="⭐ Punto di forza e valore aggiunto che porteresti",
-        style=discord.TextStyle.paragraph,
-        placeholder=(
-            "Qual è la qualità principale del tuo personaggio IC che lo rende "
-            "adatto a questo lavoro? "
-            "Cosa sai fare meglio degli altri candidati? "
-            "Convincici in massimo 5 righe."
-        ),
-        required=True, max_length=400
-    )
-
-    def __init__(self, fazione: dict):
-        self.fazione = fazione
-        super().__init__(title=f"📋 Candidatura {fazione['nome'][:40]} — Modulo")
-
-    async def on_submit(self, interaction: discord.Interaction):
-        await _invia_candidatura_governo(interaction, self.fazione, {
-            "👤 Nome, Cognome ed Età IC":         self.nome_eta.value,
-            "💼 Ruolo richiesto":                 self.ruolo_desiderato.value,
-            "🎯 Motivazione alla candidatura":     self.motivazione.value,
-            "📋 Esperienza lavorativa IC":         self.esperienza.value,
-            "⭐ Punto di forza & valore aggiunto": self.punto_forza.value,
-        })
-
-
-# ─── Router modal ─────────────────────────────────────────────────────────────
-
-def _get_modal_gov(fazione: dict) -> discord.ui.Modal:
-    tipo = fazione["modal"]
-    if tipo == "MSPD":           return _ModalGovMSPD(fazione)
-    if tipo == "MSFD":           return _ModalGovMSFD(fazione)
-    if tipo == "EMS":            return _ModalGovEMS(fazione)
-    if tipo == "Banca":          return _ModalGovBanca(fazione)
-    if tipo == "Avvocato":       return _ModalGovAvvocato(fazione)
-    if tipo == "Giudice":        return _ModalGovGiudice(fazione)
-    if tipo == "Concessionario": return _ModalGovConcessionario(fazione)
-    if tipo == "Meccanico":      return _ModalGovMeccanico(fazione)
-    if tipo == "Casino":         return _ModalGovCasino(fazione)
-    if tipo == "Pegasus":        return _ModalGovPegasus(fazione)
-    if tipo == "Ristorante":     return _ModalGovRistorante(fazione)
-    return _ModalGovGenerico(fazione)
-
-
-# ─── Funzione invio candidatura al canale staff ────────────────────────────────
-
-async def _invia_candidatura_governo(
-    interaction: discord.Interaction,
-    fazione: dict,
-    campi: dict,
-):
-    embed = discord.Embed(
-        title=f"{fazione['emoji']} CANDIDATURA — {fazione['nome'].upper()}",
-        color=discord.Color(fazione["colore"]),
-        timestamp=datetime.now()
-    )
-    embed.set_thumbnail(url=LOGO_SERVER)
-    embed.set_author(
-        name=f"{interaction.user.display_name} ({interaction.user})",
-        icon_url=interaction.user.display_avatar.url
-    )
-    for label, valore in campi.items():
-        embed.add_field(name=label, value=valore or "—", inline=False)
-    embed.set_footer(text=f"ID candidato: {interaction.user.id} • {datetime.now().strftime('%d/%m/%Y %H:%M')}")
-
-    canale = interaction.guild.get_channel(CH_BANDI_CANDIDATURE)
-    if canale:
-        view = _ViewEsitoGoverno(interaction.user.id, fazione["key"])
-        await canale.send(embed=embed, view=view)
-
-    await interaction.response.send_message(
-        f"✅ **Candidatura inviata con successo!**\n"
-        f"Lo staff valuterà la tua richiesta per **{fazione['emoji']} {fazione['nome']}**.\n"
-        f"Riceverai una risposta in DM al più presto.",
-        ephemeral=True
-    )
-
-
-# ─── View bottone "Compila Modulo" per ogni embed fazione ─────────────────────
-
-class _ViewCompilaGov(discord.ui.View):
-    def __init__(self, fazione: dict):
-        super().__init__(timeout=None)
-        self.fazione = fazione
-        btn = discord.ui.Button(
-            label="📝  Compila Modulo",
-            style=discord.ButtonStyle.primary,
-            custom_id=f"bandogov_{fazione['key']}",
-        )
-        btn.callback = self._compila
-        self.add_item(btn)
-
-    async def _compila(self, interaction: discord.Interaction):
-        await interaction.response.send_modal(_get_modal_gov(self.fazione))
-
-
-# ─── View Accetta / Rifiuta per le candidature in arrivo ──────────────────────
-
-class _ViewEsitoGoverno(discord.ui.View):
-    def __init__(self, candidato_id: int, lavoro_key: str):
+    def __init__(self, candidato_id: int, titolo_bando: str, thread_nome: str):
         super().__init__(timeout=None)
         self.candidato_id = candidato_id
-        self.lavoro_key   = lavoro_key
+        self.titolo_bando = titolo_bando
+        self.thread_nome  = thread_nome
 
-    def _fazione(self) -> dict | None:
-        return next((f for f in FAZIONI_BANDO_GOV if f["key"] == self.lavoro_key), None)
+    def _ha_permesso(self, interaction: discord.Interaction) -> bool:
+        return any(r.id == RUOLO_STAFF_BANDI for r in interaction.user.roles)
 
-    def _is_staff(self, m: discord.Member) -> bool:
-        nomi = [r.name.lower() for r in m.roles]
-        return (
-            m.guild_permissions.administrator
-            or any(kw in n for n in nomi for kw in ["staff", "admin", "developer", "direttore"])
-        )
+    async def _chiudi(self, interaction: discord.Interaction):
+        """Disabilita i bottoni dopo la decisione."""
+        for child in self.children:
+            child.disabled = True
+        await interaction.message.edit(view=self)
 
-    @discord.ui.button(label="✅ Accetta", style=discord.ButtonStyle.success,
-                       custom_id="bandogov_accetta")
+    @discord.ui.button(label="✅ Accetta", style=discord.ButtonStyle.success, custom_id="forum_bando_accetta")
     async def accetta(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self._is_staff(interaction.user):
-            return await interaction.response.send_message("❌ Non hai i permessi.", ephemeral=True)
-        faz = self._fazione()
-        nome  = faz["nome"]  if faz else self.lavoro_key
-        emoji = faz["emoji"] if faz else "📋"
-        colore = discord.Color(faz["colore"]) if faz else discord.Color.from_rgb(255, 107, 53)
+        if not self._ha_permesso(interaction):
+            return await interaction.response.send_message("❌ Non hai il ruolo per gestire le candidature.", ephemeral=True)
+
         candidato = interaction.guild.get_member(self.candidato_id)
-
-        embed = discord.Embed(
-            title=f"✅ CANDIDATURA ACCETTATA — {nome.upper()}",
-            color=colore, timestamp=datetime.now()
-        )
-        embed.set_thumbnail(url=LOGO_SERVER)
-        embed.add_field(name="Candidato",    value=candidato.mention if candidato else f"ID: {self.candidato_id}", inline=True)
-        embed.add_field(name="Fazione",      value=f"{emoji} {nome}", inline=True)
-        embed.add_field(name="Approvato da", value=interaction.user.mention, inline=True)
         canale_esiti = interaction.guild.get_channel(CH_BANDI_ESITI)
-        if canale_esiti:
-            await canale_esiti.send(embed=embed)
-        if candidato:
-            try:
-                dm = discord.Embed(
-                    title=f"✅ Candidatura Accettata — {nome}",
-                    description=(
-                        f"Congratulazioni **{candidato.display_name}**!\n\n"
-                        f"La tua candidatura per **{emoji} {nome}** "
-                        f"su **ARKES CITY RP** è stata **accettata** dallo staff.\n\n"
-                        f"Contatta un responsabile della fazione per ricevere "
-                        f"il ruolo e le istruzioni di onboarding.\n\n"
-                        f"Benvenuto/a nel team! 🎉"
-                    ),
-                    color=colore, timestamp=datetime.now()
-                )
-                dm.set_thumbnail(url=LOGO_SERVER)
-                dm.set_footer(text="ARKES CITY RP — Staff")
-                await candidato.send(embed=dm)
-            except Exception:
-                pass
-        for child in self.children: child.disabled = True
-        await interaction.message.edit(view=self)
-        await interaction.response.send_message(
-            f"✅ Candidatura di {candidato.mention if candidato else self.candidato_id} **accettata**.",
-            ephemeral=True
-        )
-
-    @discord.ui.button(label="❌ Rifiuta", style=discord.ButtonStyle.danger,
-                       custom_id="bandogov_rifiuta")
-    async def rifiuta(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self._is_staff(interaction.user):
-            return await interaction.response.send_message("❌ Non hai i permessi.", ephemeral=True)
-        faz = self._fazione()
-        nome  = faz["nome"]  if faz else self.lavoro_key
-        emoji = faz["emoji"] if faz else "📋"
-        candidato = interaction.guild.get_member(self.candidato_id)
 
         embed = discord.Embed(
-            title=f"❌ CANDIDATURA RIFIUTATA — {nome.upper()}",
-            color=discord.Color.red(), timestamp=datetime.now()
-        )
-        embed.set_thumbnail(url=LOGO_SERVER)
-        embed.add_field(name="Candidato",    value=candidato.mention if candidato else f"ID: {self.candidato_id}", inline=True)
-        embed.add_field(name="Fazione",      value=f"{emoji} {nome}", inline=True)
-        embed.add_field(name="Rifiutato da", value=interaction.user.mention, inline=True)
-        canale_esiti = interaction.guild.get_channel(CH_BANDI_ESITI)
-        if canale_esiti:
-            await canale_esiti.send(embed=embed)
-        if candidato:
-            try:
-                dm = discord.Embed(
-                    title=f"❌ Candidatura Rifiutata — {nome}",
-                    description=(
-                        f"Ciao **{candidato.display_name}**,\n\n"
-                        f"Purtroppo la tua candidatura per **{emoji} {nome}** "
-                        f"su **ARKES CITY RP** non è stata accettata questa volta.\n\n"
-                        f"Non scoraggiarti: puoi migliorare il tuo profilo IC "
-                        f"e ripresentare candidatura in futuro.\n"
-                        f"Per maggiori dettagli puoi contattare lo staff."
-                    ),
-                    color=discord.Color.red(), timestamp=datetime.now()
-                )
-                dm.set_thumbnail(url=LOGO_SERVER)
-                dm.set_footer(text="ARKES CITY RP — Staff")
-                await candidato.send(embed=dm)
-            except Exception:
-                pass
-        for child in self.children: child.disabled = True
-        await interaction.message.edit(view=self)
-        await interaction.response.send_message(
-            f"❌ Candidatura di {candidato.mention if candidato else self.candidato_id} **rifiutata**.",
-            ephemeral=True
-        )
-
-
-# ─── Comando /bando-governo ────────────────────────────────────────────────────
-
-@bot.tree.command(
-    name="bando-governo",
-    description="🏛️ Pubblica i bandi ufficiali del Governo (un embed per fazione) [Solo Staff]"
-)
-@is_staff_or_direttore()
-async def bando_governo_cmd(interaction: discord.Interaction):
-    await interaction.response.defer(ephemeral=True, thinking=True)
-    inviati = 0
-    for fazione in FAZIONI_BANDO_GOV:
-        requisiti_txt = "\n".join(f"• {r}" for r in fazione["requisiti"])
-        embed = discord.Embed(
-            title=f"{fazione['emoji']} {fazione['nome']} {fazione['emoji']}",
-            description=(
-                f"{fazione['descrizione']}\n\n"
-                f"**📋 Requisiti Fondamentali**\n"
-                f"{requisiti_txt}\n\n"
-                f"👇 *Clicca il pulsante qui sotto per candidarti!*"
-            ),
-            color=discord.Color(fazione["colore"]),
+            title=f"✅ CANDIDATURA ACCETTATA — {self.titolo_bando.upper()}",
+            color=discord.Color.green(),
             timestamp=datetime.now()
         )
         embed.set_thumbnail(url=LOGO_SERVER)
-        embed.set_footer(text="Modulo Ufficiale Fazioni RP — ARKES CITY RP")
-        await interaction.channel.send(embed=embed, view=_ViewCompilaGov(fazione))
-        inviati += 1
-        await asyncio.sleep(0.8)
+        embed.add_field(name="👤 Candidato",    value=candidato.mention if candidato else f"ID: {self.candidato_id}", inline=True)
+        embed.add_field(name="📋 Bando",        value=self.titolo_bando, inline=True)
+        embed.add_field(name="✅ Approvato da", value=interaction.user.mention, inline=True)
 
-    await interaction.followup.send(
-        f"✅ **{inviati} bandi pubblicati** con successo in {interaction.channel.mention}!",
-        ephemeral=True
-    )
+        if canale_esiti:
+            await canale_esiti.send(embed=embed)
 
-# ── Aggiungi in on_ready dopo le altre bot.add_view():
-#    for _f in FAZIONI_BANDO_GOV:
-#        bot.add_view(_ViewCompilaGov(_f))
-# ══════════════════════════════════════════════════════════════════
+        if candidato:
+            try:
+                dm = discord.Embed(
+                    title=f"✅ Candidatura Accettata — {self.titolo_bando}",
+                    description=f"Congratulazioni! La tua candidatura per **{self.titolo_bando}** è stata **accettata**.\nContatta lo staff per ulteriori informazioni.",
+                    color=discord.Color.green()
+                )
+                dm.set_thumbnail(url=LOGO_SERVER)
+                await candidato.send(embed=dm)
+            except Exception:
+                pass
+
+        await self._chiudi(interaction)
+        await interaction.response.send_message(
+            f"✅ Candidatura di {candidato.mention if candidato else self.candidato_id} **accettata**.", ephemeral=True
+        )
+
+    @discord.ui.button(label="❌ Rifiuta", style=discord.ButtonStyle.danger, custom_id="forum_bando_rifiuta")
+    async def rifiuta(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self._ha_permesso(interaction):
+            return await interaction.response.send_message("❌ Non hai il ruolo per gestire le candidature.", ephemeral=True)
+
+        candidato = interaction.guild.get_member(self.candidato_id)
+        canale_esiti = interaction.guild.get_channel(CH_BANDI_ESITI)
+
+        embed = discord.Embed(
+            title=f"❌ CANDIDATURA RIFIUTATA — {self.titolo_bando.upper()}",
+            color=discord.Color.red(),
+            timestamp=datetime.now()
+        )
+        embed.set_thumbnail(url=LOGO_SERVER)
+        embed.add_field(name="👤 Candidato",    value=candidato.mention if candidato else f"ID: {self.candidato_id}", inline=True)
+        embed.add_field(name="📋 Bando",        value=self.titolo_bando, inline=True)
+        embed.add_field(name="❌ Rifiutato da", value=interaction.user.mention, inline=True)
+
+        if canale_esiti:
+            await canale_esiti.send(embed=embed)
+
+        if candidato:
+            try:
+                dm = discord.Embed(
+                    title=f"❌ Candidatura Rifiutata — {self.titolo_bando}",
+                    description=f"Purtroppo la tua candidatura per **{self.titolo_bando}** è stata **rifiutata**.\nPuoi riprovare in futuro!",
+                    color=discord.Color.red()
+                )
+                dm.set_thumbnail(url=LOGO_SERVER)
+                await candidato.send(embed=dm)
+            except Exception:
+                pass
+
+        await self._chiudi(interaction)
+        await interaction.response.send_message(
+            f"❌ Candidatura di {candidato.mention if candidato else self.candidato_id} **rifiutata**.", ephemeral=True
+        )
+
+
+@bot.event
+async def on_message(message: discord.Message):
+    """Intercetta i messaggi nei thread del forum Bandi-Lavorativi.
+    
+    Struttura del forum:
+    - Ogni thread/post è un bando con il modulo già scritto dal bot/staff
+    - Il cittadino copia il modello, lo compila e lo invia come messaggio nel thread
+    - Il bot salva la candidatura nel log, cancella SOLO il messaggio del cittadino
+      (il thread/post originale rimane intatto)
+    """
+    # Ignora i messaggi del bot stesso
+    if message.author.bot:
+        await bot.process_commands(message)
+        return
+
+    # Controlla se il messaggio è in un thread figlio del forum bandi
+    if (
+        isinstance(message.channel, discord.Thread)
+        and message.channel.parent_id == CH_FORUM_BANDI
+    ):
+        thread       = message.channel
+        titolo_bando = thread.name  # nome del post del forum = nome del bando
+
+        # Costruisce l'embed della candidatura per il log
+        log_canale = message.guild.get_channel(CH_BANDI_CANDIDATURE)
+        if log_canale:
+            embed = discord.Embed(
+                title=f"📋 NUOVA CANDIDATURA — {titolo_bando.upper()}",
+                color=discord.Color.from_rgb(255, 107, 53),
+                timestamp=datetime.now()
+            )
+            embed.set_thumbnail(url=LOGO_SERVER)
+            embed.set_author(
+                name=f"{message.author.display_name} ({message.author})",
+                icon_url=message.author.display_avatar.url
+            )
+
+            # Il testo compilato dal cittadino — lo mettiamo in un campo dedicato
+            testo = message.content[:1020] if message.content else "_Nessun testo._"
+            embed.add_field(
+                name="📝 Modulo compilato",
+                value=testo,
+                inline=False
+            )
+
+            # Allegati (screenshot, documenti, ecc.)
+            if message.attachments:
+                allegati = "\n".join(a.url for a in message.attachments[:5])
+                embed.add_field(name="📎 Allegati", value=allegati, inline=False)
+
+            embed.add_field(name="📌 Bando",    value=titolo_bando,           inline=True)
+            embed.add_field(name="👤 Candidato", value=message.author.mention, inline=True)
+            embed.set_footer(text=f"ID candidato: {message.author.id}")
+
+            view = ViewEsitoForumBando(message.author.id, titolo_bando, thread.name)
+            await log_canale.send(embed=embed, view=view)
+
+        # Cancella SOLO il messaggio del cittadino, il thread/post rimane intatto
+        try:
+            await message.delete()
+        except Exception:
+            pass
+
+        return  # non processare come comando
+
+    await bot.process_commands(message)
+
+
 
 
 # --- COMANDI PREFIX FALLBACK (funzionano subito senza sync) ---
@@ -10227,6 +9035,7 @@ async def on_ready():
     bot.add_view(ViewBandi())
     bot.add_view(ViewEsitoBandoCustom(0, "__placeholder__"))
     bot.add_view(ViewFirmaContratto())
+    bot.add_view(ViewEsitoForumBando(0, "__placeholder__", "__placeholder__"))
 
 
 # ══════════════════════════════════════════════════════════════════
