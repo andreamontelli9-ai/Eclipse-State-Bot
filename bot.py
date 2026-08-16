@@ -5684,23 +5684,14 @@ def _ha_ruolo_bandi(interaction: discord.Interaction) -> bool:
 # Il modal di creazione chiede: Titolo + le 3 domande personalizzabili.
 
 class ModalCreaBando(discord.ui.Modal, title="📝 Crea Nuovo Bando"):
+    # Form candidatura avrà SEMPRE: Nome/Cognome IC + Età IC (fissi) + queste 3 domande
     titolo_bando = discord.ui.TextInput(
         label="Titolo del bando",
         placeholder="Es: Bando Polizia Municipale",
         required=True, max_length=80
     )
-    nome_cognome_info = discord.ui.TextInput(
-        label="── Campo fisso: Nome e Cognome IC ──",
-        placeholder="Questo campo sarà sempre presente nel form",
-        required=False, max_length=1, default="✔ Presente"
-    )
-    eta_info = discord.ui.TextInput(
-        label="── Campo fisso: Età IC ──",
-        placeholder="Questo campo sarà sempre presente nel form",
-        required=False, max_length=1, default="✔ Presente"
-    )
     domanda1 = discord.ui.TextInput(
-        label="Domanda 1",
+        label="Domanda 1  [Nome/Cognome IC + Età sempre fissi]",
         placeholder="Es: Motivazione — Perché vuoi questo ruolo?",
         required=True, max_length=100
     )
