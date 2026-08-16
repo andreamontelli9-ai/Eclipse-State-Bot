@@ -5691,7 +5691,7 @@ class ModalCreaBando(discord.ui.Modal, title="📝 Crea Nuovo Bando"):
         required=True, max_length=80
     )
     domanda1 = discord.ui.TextInput(
-        label="Domanda 1  [Nome/Cognome IC + Età sempre fissi]",
+        label="Domanda 1",
         placeholder="Es: Motivazione — Perché vuoi questo ruolo?",
         required=True, max_length=100
     )
