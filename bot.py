@@ -1268,14 +1268,14 @@ async def accetta_background(interaction: discord.Interaction, utente: discord.M
     embed.description = desc
     whitelist_db[utente.id] = "Approvato"
 
-    # Assegna ruolo background accettato
-    RUOLO_BG_ACCETTATO_ID = 1494294050319241356
-    ruolo_bg = interaction.guild.get_role(RUOLO_BG_ACCETTATO_ID)
-    if ruolo_bg:
-        try:
-            await utente.add_roles(ruolo_bg, reason="Background accettato dallo staff")
-        except Exception as e:
-            print(f"⚠️ Errore assegnazione ruolo background: {e}")
+    # Assegna ruoli background accettato
+    for ruolo_id in (1494294050319241356, 1532126894127059127):
+        ruolo_bg = interaction.guild.get_role(ruolo_id)
+        if ruolo_bg:
+            try:
+                await utente.add_roles(ruolo_bg, reason="Background accettato dallo staff")
+            except Exception as e:
+                print(f"⚠️ Errore assegnazione ruolo {ruolo_id}: {e}")
 
     await interaction.response.send_message(embed=embed)
     try:
