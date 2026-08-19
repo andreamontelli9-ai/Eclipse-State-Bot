@@ -2408,6 +2408,110 @@ async def esamina(interaction: discord.Interaction, utente: discord.Member, psn:
 
 
 
+@bot.tree.command(name="esamina_pagamenti", description="💳 Visualizza gli ultimi pagamenti di un cittadino (Solo Staff/Polizia)")
+@app_commands.describe(utente="Il cittadino di cui visualizzare i pagamenti")
+@has_police_permission()
+async def esamina_pagamenti(interaction: discord.Interaction, utente: discord.Member):
+    uid = utente.id
+    transazioni = storico_transazioni.get(uid, [])
+    saldo_banca  = conti_bancari.get(uid, 0)
+    saldo_wallet = portafogli.get(uid, 0)
+
+    colore = discord.Color.from_rgb(255, 107, 53)
+
+    embed = discord.Embed(color=colore, timestamp=datetime.now())
+    embed.set_author(
+        name=f"🏦 Storico Pagamenti — {utente.display_name}",
+        icon_url=utente.display_avatar.url
+    )
+    embed.set_thumbnail(url=utente.display_avatar.url)
+
+    # ── Intestazione con saldi ──
+    saldo_b_fmt = f"{abs(saldo_banca):,}".replace(",", ".")
+    saldo_w_fmt = f"{abs(saldo_wallet):,}".replace(",", ".")
+    segno_b = "-" if saldo_banca < 0 else ""
+    stato_b = "🔴 NEGATIVO" if saldo_banca < 0 else "🟢 Attivo"
+
+    embed.description = (
+        f"**👤 Cittadino :** {utente.mention}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"🏦 **Conto Bancario :** `{segno_b}{saldo_b_fmt} $`  ·  *{stato_b}*\n"
+        f"👜 **Portafoglio :** `{saldo_w_fmt} $`\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    )
+
+    # ── Lista transazioni ──
+    if not transazioni:
+        embed.add_field(
+            name="📋  __U L T I M I   P A G A M E N T I__",
+            value=(
+                "```\n"
+                "  Nessuna transazione registrata\n"
+                "  per questo cittadino.\n"
+                "```"
+            ),
+            inline=False
+        )
+    else:
+        MAX_TX = 10  # mostra fino a 10 transazioni
+        righe = ""
+        entrate = 0
+        uscite  = 0
+
+        for i, t in enumerate(transazioni[:MAX_TX]):
+            segno  = t.get("segno", "+")
+            importo = t.get("importo", 0)
+            tipo   = t.get("tipo", "Transazione")
+            cp     = t.get("controparte", "")
+            ts     = t.get("ts", "—")
+
+            if segno == "+":
+                emoji  = "🟢"
+                segno_v = "+"
+                entrate += importo
+            else:
+                emoji  = "🔴"
+                segno_v = "−"
+                uscite  += importo
+
+            imp_fmt = f"{importo:,}".replace(",", ".")
+            cp_str  = f"  ›  {cp}" if cp else ""
+
+            righe += (
+                f"{emoji}  **{tipo}**{cp_str}\n"
+                f"> 🕐 `{ts}`　　💰 `{segno_v}{imp_fmt} $`\n"
+            )
+            if i < MAX_TX - 1 and i < len(transazioni) - 1:
+                righe += "\n"
+
+        embed.add_field(
+            name=f"📋  __U L T I M I   P A G A M E N T I__  *(ultimi {min(len(transazioni), MAX_TX)})*",
+            value=righe,
+            inline=False
+        )
+
+        # ── Riepilogo ──
+        e_fmt = f"{entrate:,}".replace(",", ".")
+        u_fmt = f"{uscite:,}".replace(",", ".")
+        embed.add_field(name="\u200b", value="━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", inline=False)
+        embed.add_field(
+            name="📊  __R I E P I L O G O__",
+            value=(
+                f"🟢 **Totale Entrate :** `+{e_fmt} $`\n"
+                f"🔴 **Totale Uscite :**  `−{u_fmt} $`\n"
+                f"📁 **Transazioni totali registrate :** `{len(transazioni)}`"
+            ),
+            inline=False
+        )
+
+    embed.set_footer(
+        text=f"Consultato da {interaction.user.display_name}  ·  Eclipse City RP  ·  Pacific Bank",
+        icon_url=LOGO_SERVER
+    )
+
+    await interaction.response.send_message(embed=embed)
+
+
 @bot.tree.command(name="cerca", description="🔍 Cerca una targa nei registri")
 @has_police_permission()
 async def cerca_targa(interaction: discord.Interaction, targa: str):
