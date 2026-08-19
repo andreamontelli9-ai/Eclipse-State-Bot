@@ -4210,102 +4210,6 @@ async def pesca(interaction: discord.Interaction):
 
 
 
-@bot.tree.command(name="shop", description="🛒 Apri il negozio e scegli la categoria")
-async def shop(interaction: discord.Interaction):
-    from collections import defaultdict
-    uid = interaction.user.id
-
-    categorie_disponibili = list(set(
-        v.get("categoria", "Generale")
-        for v in oggetti_creati.values()
-        if v.get("vendibile", True)
-    ))
-    if not categorie_disponibili:
-        return await interaction.response.send_message("❌ Nessun item disponibile nel negozio.", ephemeral=True)
-
-    opzioni = [discord.SelectOption(label=c, emoji="🛒") for c in categorie_disponibili[:25]]
-
-    class ShopCategoriaSelect(discord.ui.Select):
-        def __init__(self):
-            super().__init__(placeholder="Seleziona categoria negozio...", options=opzioni)
-
-        async def callback(self, inter: discord.Interaction):
-            cat = self.values[0]
-            items_cat = {
-                n: d for n, d in oggetti_creati.items()
-                if d.get("categoria") == cat and d.get("vendibile", True) and d.get("quantita", 0) > 0
-            }
-            if not items_cat:
-                return await inter.response.send_message(f"❌ Nessun item disponibile in **{cat}**.", ephemeral=True)
-
-            ruolo_req = None
-            for d in items_cat.values():
-                if d.get("ruolo_richiesto"):
-                    ruolo_req = d["ruolo_richiesto"]
-                    break
-            if ruolo_req:
-                has_role = any(r.name == ruolo_req for r in inter.user.roles)
-                if not has_role:
-                    return await inter.response.send_message(f"❌ Devi avere il ruolo **{ruolo_req}** per accedere a questa categoria.", ephemeral=True)
-
-            righe = "\n".join([
-                f"➢ **{n}** — {d.get('descrizione','N/A')} | {d.get('prezzo',0)}$ | Stock: {d.get('quantita',0)}"
-                for n, d in items_cat.items()
-            ])
-            embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-            embed.description = f"🛒 | **NEGOZIO — {cat.upper()}**\n\n{righe}"
-            embed.set_thumbnail(url=LOGO_SERVER)
-
-            buy_opzioni = [
-                discord.SelectOption(label=f"{n} — {d.get('prezzo',0)}$", value=n)
-                for n, d in items_cat.items()
-            ][:25]
-
-            class BuySelect(discord.ui.Select):
-                def __init__(self):
-                    super().__init__(placeholder="Acquista un item...", options=buy_opzioni)
-                async def callback(self, inter2: discord.Interaction):
-                    nome_item = self.values[0]
-                    item_d = oggetti_creati.get(nome_item)
-                    if not item_d or item_d.get("quantita", 0) <= 0:
-                        return await inter2.response.send_message("❌ Item esaurito.", ephemeral=True)
-                    prezzo = item_d.get("prezzo", 0)
-                    saldo = portafogli.get(inter2.user.id, 0)
-                    if saldo < prezzo:
-                        return await inter2.response.send_message(f"❌ Non hai abbastanza soldi. Ti servono **{prezzo}$**.", ephemeral=True)
-                    portafogli[inter2.user.id] -= prezzo
-                    _paga_direttore("supermarket", prezzo)
-                    item_d["quantita"] -= 1
-                    uid2 = inter2.user.id
-                    if uid2 not in inventari: inventari[uid2] = []
-                    inventari[uid2].append(nome_item)
-                    _salva_dati()
-                    embed_ok = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-                    embed_ok.description = (
-                        f"✅ | **ACQUISTO COMPLETATO**\n\n"
-                        f"➢ {inter2.user.mention} ha acquistato **{nome_item}** per **{prezzo}$**.\n"
-                        f"➢ Aggiunto all'inventario."
-                    )
-                    await inter2.response.send_message(embed=embed_ok)
-
-            class BuyView(discord.ui.View):
-                def __init__(self):
-                    super().__init__(timeout=60)
-                    self.add_item(BuySelect())
-
-            await inter.response.send_message(embed=embed, view=BuyView())
-
-    class ShopView(discord.ui.View):
-        def __init__(self):
-            super().__init__(timeout=60)
-            self.add_item(ShopCategoriaSelect())
-
-    embed_sel = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-    embed_sel.description = "🛒 | **NEGOZIO**\n\n➢ Seleziona la categoria dal menu qui sotto."
-    embed_sel.set_thumbnail(url=LOGO_SERVER)
-    await interaction.response.send_message(embed_sel, view=ShopView())
-
-
 # ─────────────────────────────────────────────
 #   🍽️  SISTEMA FAME & SETE
 # ─────────────────────────────────────────────
@@ -5016,6 +4920,7 @@ class SupermarketCiboView(discord.ui.View):
                 if uid not in inventari:
                     inventari[uid] = []
                 inventari[uid].append(nome_item)
+                _registra_transazione(uid, "−", prezzo, "🛒 Acquisto Supermarket", nome_item)
                 _salva_dati()
                 embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
                 embed.set_author(name="🛒 Supermarket — Acquisto completato")
@@ -5081,6 +4986,7 @@ class SupermarketBevandeView(discord.ui.View):
                 if uid not in inventari:
                     inventari[uid] = []
                 inventari[uid].append(nome_item)
+                _registra_transazione(uid, "−", prezzo, "🛒 Acquisto Supermarket", nome_item)
                 _salva_dati()
                 embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
                 embed.set_author(name="🛒 Supermarket — Acquisto completato")
@@ -5145,6 +5051,7 @@ class SupermarketItemView(discord.ui.View):
                 if uid not in inventari:
                     inventari[uid] = []
                 inventari[uid].append(nome_item)
+                _registra_transazione(uid, "−", prezzo, "🛒 Acquisto Supermarket", nome_item)
                 _salva_dati()
                 embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
                 embed.set_author(name="🛒 Supermarket — Acquisto completato")
@@ -8181,9 +8088,27 @@ class IslaConfermaModal(discord.ui.Modal, title="🍽️ Conferma Ordine"):
 
         portafogli[uid] -= prezzo
         portafogli[ISLA_CASSA_UID] = portafogli.get(ISLA_CASSA_UID, 0) + prezzo
+        _registra_transazione(uid, "−", prezzo, f"⚓ Ordine Isla de Oro", piatto)
         _salva_dati()
 
         guild = inter.guild
+        # Log nel canale economia
+        if guild:
+            log_eco = guild.get_channel(CH_LOG_ECONOMIA)
+            if log_eco:
+                log_embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
+                log_embed.set_author(name="⚓ Acquisto Isla de Oro", icon_url=LOGO_SERVER)
+                log_embed.description = (
+                    f"**👤 Utente :** <@{uid}>\n"
+                    f"**🍽️ Piatto :** {piatto}\n"
+                    f"**💸 Importo :** `−{prezzo:,} $`\n"
+                    f"**👜 Portafoglio residuo :** `{portafogli.get(uid, 0):,} $`"
+                )
+                log_embed.set_footer(text=f"UserID: {uid}")
+                try:
+                    await log_eco.send(embed=log_embed)
+                except Exception:
+                    pass
         cameriere_trovato = None
         if guild:
             ruolo_cam = guild.get_role(ISLA_RUOLO_CAMERIERE)
