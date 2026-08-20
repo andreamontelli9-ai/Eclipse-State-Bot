@@ -1319,7 +1319,7 @@ async def rifiuta_background(interaction: discord.Interaction, utente: discord.M
 # 🔴 INSERISCI QUI L'ID DEL CANALE BENVENUTI DEL TUO SERVER
 CANALE_BENVENUTO_ID = 1532127042848424026  # Benvenuto Eclipse City
 # 🔴 INSERISCI QUI L'ID DEL CANALE ARRIVEDERCI DEL TUO SERVER
-CANALE_ADDIO_ID = 1493322697910784122    # Partenze
+CANALE_ADDIO_ID = 1532127045465804942    # Partenze
 
 # Link immagine banner benvenuto
 BANNER_BENVENUTO = "https://cdn.discordapp.com/attachments/1488275787873390752/1513128185003249734/file_000000006ff8722fb59a7770425a0fb2.png?ex=6a58b2ef&is=6a57616f&hm=12219a1c3525341141cb50b193f21eb2b6ec69c1da979121375a7fa934bf8bc6&"
@@ -1386,18 +1386,15 @@ async def on_member_remove(member: discord.Member):
         return
 
     embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-    embed.set_author(
-        name=f"👋 ARRIVEDERCI <@{member.id}> 👋",
-        icon_url=member.guild.icon.url if member.guild.icon else None
-    )
     embed.description = (
-        "✈️ • **PARTENZA:**\n\n"
-        f"👋 Ci dispiace {member.mention} vederti andare via da Eclipse City RP.\n"
-        f"➢ 📍 Speriamo che la tua esperienza nel server sia stata positiva.\n"
-        f"➢ 📍 Le porte del server saranno sempre aperte per te.\n"
-        f"➢ 📍 Se vuoi tornare sarai sempre il benvenuto.\n"
-        f"💬 Grazie per aver fatto parte della nostra community RP."
+        f'🛫 **"Allacciate le cinture"** 🛫\n'
+        f'{member.mention} ha lasciato Eclipse City! 👋\n\n'
+        '🧳 *Il tuo volo è appena partito da Eclipse City* 🏙️\n'
+        '🌍 *Che tu vada a nuove avventure, torni presto o semplicemente ti prenda una pausa, ti salutiamo con affetto* ⭐\n\n'
+        '> 🎭 *Speriamo di rivederti presto tra le strade di Los Santos!*\n\n'
+        '🛬 **Buon viaggio e a presto! 🚀**'
     )
+    embed.set_thumbnail(url=member.display_avatar.url)
 
     await canale.send(embed=embed)
 
