@@ -9057,9 +9057,6 @@ async def on_ready():
     if not pagamento_rate_task.is_running():
         pagamento_rate_task.start()
         print("💳 Pagamento rate finanziamenti attivo: ogni 7 giorni.")
-    if not orologio_gta_task.is_running():
-        orologio_gta_task.start()
-        print("🕐 Orologio Eclipse attivo: aggiornamento ogni 5 secondi.")
 
     bot.add_view(ViewSondaggioPulsanti())
     bot.add_view(ViewPannelloBg())
@@ -9264,97 +9261,6 @@ async def revoca_contratto_cmd(interaction: discord.Interaction, intestatario: s
 
 bot.tree.add_command(dynasty8_group)
 
-
-
-# ══════════════════════════════════════════════════════════════════
-# 🕐  OROLOGIO ECLIPSE — CANALE FISSO
-# ══════════════════════════════════════════════════════════════════
-
-GTA_CLOCK_CHANNEL_ID      = 1540136905637634108
-GTA_HOURS_PER_REAL_MINUTE = 2
-GTA_EPOCH_OFFSET_HOURS    = 8
-
-_orologio_msg_id: int | None = None
-
-def _get_gta_time():
-    secs             = datetime.now(timezone.utc).timestamp()
-    gta_hour_decimal = ((secs / 60.0) * GTA_HOURS_PER_REAL_MINUTE + GTA_EPOCH_OFFSET_HOURS) % 24
-    gta_h = int(gta_hour_decimal)
-    gta_m = int((gta_hour_decimal - gta_h) * 60)
-    gta_s = int(((gta_hour_decimal - gta_h) * 60 - gta_m) * 60)
-    is_notte = gta_h < 6 or gta_h >= 21
-    if   gta_h < 6:  periodo = "🌃 Notte Fonda"
-    elif gta_h < 12: periodo = "🌅 Mattina"
-    elif gta_h < 15: periodo = "☀️ Mezzogiorno"
-    elif gta_h < 18: periodo = "🌤️ Pomeriggio"
-    elif gta_h < 21: periodo = "🌆 Sera"
-    else:            periodo = "🌙 Notte"
-    return gta_h, gta_m, gta_s, periodo, is_notte
-
-GTA_GIORNI = ["Lunedì","Martedì","Mercoledì","Giovedì","Venerdì","Sabato","Domenica"]
-def _get_gta_day():
-    return GTA_GIORNI[datetime.now().weekday()]
-
-def _barra_ora(gta_h, gta_m, gta_s):
-    pct = (gta_h * 3600 + gta_m * 60 + gta_s) / 86400
-    pos = int(pct * 24)
-    bar = "".join("●" if i == pos else "█" if i < pos else "░" for i in range(24))
-    return f"`{bar}` {int(pct*100)}%"
-
-def _orologio_emoji(gta_h, gta_m):
-    simboli = ["🕛","🕧","🕐","🕜","🕑","🕝","🕒","🕞","🕓","🕟",
-               "🕔","🕠","🕕","🕡","🕖","🕢","🕗","🕣","🕘","🕤","🕙","🕥","🕚","🕦"]
-    return simboli[((gta_h % 12) * 2 + (1 if gta_m >= 30 else 0)) % 24]
-
-def _build_orologio_embed(gta_h, gta_m, gta_s, periodo, is_notte, gta_day):
-    if is_notte:
-        color, icona = discord.Color.from_rgb(20, 30, 70), "🌃"
-    elif gta_h < 12:
-        color, icona = discord.Color.from_rgb(255, 180, 50), "🌅"
-    elif gta_h < 18:
-        color, icona = discord.Color.from_rgb(50, 160, 255), "☀️"
-    else:
-        color, icona = discord.Color.from_rgb(255, 100, 40), "🌆"
-
-    embed = discord.Embed(title=f"{_orologio_emoji(gta_h, gta_m)}  Orologio di Eclipse", color=color)
-    embed.set_thumbnail(url=LOGO_SERVER)
-    embed.add_field(name="🕐  Ora GTA",            value=f"```\n{gta_h:02d}:{gta_m:02d}:{gta_s:02d}\n```", inline=True)
-    embed.add_field(name="📅  Giorno",              value=f"```\n{gta_day}\n```",                            inline=True)
-    embed.add_field(name="🌍  Momento",             value=f"**{periodo}**",                                    inline=True)
-    embed.add_field(name="⏳  Progresso giornata",  value=_barra_ora(gta_h, gta_m, gta_s),                   inline=False)
-    embed.add_field(name="📌  Riferimenti",
-        value="🌄 `06:00` — Alba\n☀️ `12:00` — Mezzogiorno\n🌇 `18:00` — Sera\n🌙 `21:00` — Notte", inline=True)
-    embed.add_field(name="⚙️  Velocità",
-        value="Tempo GTA a **×120**\n1 min reale = **2 ore** GTA", inline=True)
-    embed.set_footer(text="⚡ Aggiornamento ogni 5s  •  Eclipse RP")
-    embed.timestamp = datetime.now(timezone.utc)
-    return embed
-
-@tasks.loop(seconds=5)
-async def orologio_gta_task():
-    global _orologio_msg_id
-    channel = bot.get_channel(GTA_CLOCK_CHANNEL_ID)
-    if channel is None:
-        return
-    gta_h, gta_m, gta_s, periodo, is_notte = _get_gta_time()
-    embed = _build_orologio_embed(gta_h, gta_m, gta_s, periodo, is_notte, _get_gta_day())
-    try:
-        if _orologio_msg_id is not None:
-            try:
-                msg = await channel.fetch_message(_orologio_msg_id)
-                await msg.edit(embed=embed)
-                return
-            except discord.NotFound:
-                _orologio_msg_id = None
-        await channel.purge(limit=10)
-        msg = await channel.send(embed=embed)
-        _orologio_msg_id = msg.id
-    except Exception as e:
-        print(f"❌ [Orologio Eclipse] Errore: {e}")
-
-@orologio_gta_task.before_loop
-async def before_orologio():
-    await bot.wait_until_ready()
 
 # --- AVVIO DEL BOT ---
 if not TOKEN:
