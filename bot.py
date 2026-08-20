@@ -9057,6 +9057,9 @@ async def on_ready():
     if not pagamento_rate_task.is_running():
         pagamento_rate_task.start()
         print("💳 Pagamento rate finanziamenti attivo: ogni 7 giorni.")
+    if not orologio_gta_task.is_running():
+        orologio_gta_task.start()
+        print("🕐 Orologio GTA attivo: aggiornamento ogni minuto.")
 
     bot.add_view(ViewSondaggioPulsanti())
     bot.add_view(ViewPannelloBg())
@@ -9260,6 +9263,108 @@ async def revoca_contratto_cmd(interaction: discord.Interaction, intestatario: s
     await interaction.response.send_message("✅ Contratto revocato e pubblicato nel canale.", ephemeral=True)
 
 bot.tree.add_command(dynasty8_group)
+
+
+# ══════════════════════════════════════════════════════════════════
+# 🕐  OROLOGIO GTA — CANALE FISSO
+# ══════════════════════════════════════════════════════════════════
+
+GTA_CLOCK_CHANNEL_ID = 1540136905637634108
+
+# Sincronizzazione ufficiale GTA/FiveM: 1 min reale = 2 ore GTA (×120)
+GTA_HOURS_PER_REAL_MINUTE = 2
+GTA_EPOCH_OFFSET_HOURS    = 8   # ora GTA all'epoch Unix 0 (08:00 = alba)
+
+_orologio_msg_id: int | None = None
+
+def _get_gta_time():
+    now_unix_seconds     = datetime.now(timezone.utc).timestamp()
+    real_minutes_elapsed = now_unix_seconds / 60.0
+    total_gta_hours      = (real_minutes_elapsed * GTA_HOURS_PER_REAL_MINUTE) + GTA_EPOCH_OFFSET_HOURS
+    gta_hour_decimal     = total_gta_hours % 24
+    gta_h = int(gta_hour_decimal)
+    gta_m = int((gta_hour_decimal - gta_h) * 60)
+    is_notte = gta_h < 6 or gta_h >= 21
+    if gta_h < 6:
+        periodo = "🌃 Notte Fonda"
+    elif gta_h < 12:
+        periodo = "🌅 Mattina"
+    elif gta_h < 15:
+        periodo = "☀️ Mezzogiorno"
+    elif gta_h < 18:
+        periodo = "🌤️ Pomeriggio"
+    elif gta_h < 21:
+        periodo = "🌆 Sera"
+    else:
+        periodo = "🌙 Notte"
+    return gta_h, gta_m, periodo, is_notte
+
+GTA_GIORNI = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
+
+def _get_gta_day():
+    return GTA_GIORNI[datetime.now().weekday()]
+
+def _barra_ora(gta_h, gta_m):
+    pct    = (gta_h * 60 + gta_m) / 1440
+    filled = int(pct * 20)
+    return f"{'█' * filled}{'░' * (20 - filled)}  {int(pct * 100)}%"
+
+def _build_orologio_embed(gta_h, gta_m, periodo, is_notte, gta_day):
+    ora_str = f"{gta_h:02d}:{gta_m:02d}"
+    if is_notte:
+        color, icona = discord.Color.from_rgb(30, 40, 80), "🌃"
+    elif gta_h < 12:
+        color, icona = discord.Color.from_rgb(255, 180, 50), "🌅"
+    elif gta_h < 18:
+        color, icona = discord.Color.from_rgb(50, 160, 255), "☀️"
+    else:
+        color, icona = discord.Color.from_rgb(255, 100, 40), "🌆"
+
+    embed = discord.Embed(title=f"{icona}  Orologio di Los Santos", color=color)
+    embed.set_thumbnail(url=LOGO_SERVER)
+    embed.add_field(name="🕐  Ora nel server",     value=f"```\n{ora_str}\n```",  inline=True)
+    embed.add_field(name="📅  Giorno",              value=f"```\n{gta_day}\n```", inline=True)
+    embed.add_field(name="🌍  Momento",             value=f"**{periodo}**",        inline=True)
+    embed.add_field(name="⏳  Progresso giornata",  value=f"`{_barra_ora(gta_h, gta_m)}`", inline=False)
+    embed.add_field(
+        name="📌  Riferimenti orari",
+        value="🌄 `06:00` — Alba\n☀️ `12:00` — Mezzogiorno\n🌇 `18:00` — Tardo pomeriggio\n🌙 `21:00` — Cala la notte",
+        inline=True
+    )
+    embed.add_field(
+        name="⚙️  Sincronizzazione",
+        value="Il tempo GTA scorre a **×120** rispetto alla realtà.\n1 minuto reale = **2 ore** a Los Santos.",
+        inline=True
+    )
+    embed.set_footer(text="🔄 Aggiornamento automatico ogni minuto  •  Los Santos Time")
+    embed.timestamp = datetime.now(timezone.utc)
+    return embed
+
+@tasks.loop(minutes=1)
+async def orologio_gta_task():
+    global _orologio_msg_id
+    channel = bot.get_channel(GTA_CLOCK_CHANNEL_ID)
+    if channel is None:
+        return
+    gta_h, gta_m, periodo, is_notte = _get_gta_time()
+    embed = _build_orologio_embed(gta_h, gta_m, periodo, is_notte, _get_gta_day())
+    try:
+        if _orologio_msg_id is not None:
+            try:
+                msg = await channel.fetch_message(_orologio_msg_id)
+                await msg.edit(embed=embed)
+                return
+            except discord.NotFound:
+                _orologio_msg_id = None
+        await channel.purge(limit=10)
+        msg = await channel.send(embed=embed)
+        _orologio_msg_id = msg.id
+    except Exception as e:
+        print(f"❌ [Orologio GTA] Errore: {e}")
+
+@orologio_gta_task.before_loop
+async def before_orologio():
+    await bot.wait_until_ready()
 
 
 # --- AVVIO DEL BOT ---
