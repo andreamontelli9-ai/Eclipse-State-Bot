@@ -8256,7 +8256,7 @@ async def isla_de_oro(interaction: discord.Interaction):
 # ══════════════════════════════════════════════════════════════════
 
 BACKUP_OUTPUT_FILE         = "backup_completo.json"
-BACKUP_MESSAGGI_PER_CANALE = 50
+BACKUP_MESSAGGI_PER_CANALE = None   # None = TUTTI i messaggi senza limite
 
 def _bk_permessi_to_dict(permissions: discord.Permissions) -> dict:
     return {nome: valore for nome, valore in permissions}
@@ -8277,19 +8277,21 @@ def _bk_overwrites_list(obj) -> list:
     return result
 
 async def _bk_leggi_messaggi(canale) -> list:
+    """Legge TUTTI i messaggi del canale in ordine cronologico (dal più vecchio al più recente)."""
     messaggi = []
     try:
-        async for msg in canale.history(limit=BACKUP_MESSAGGI_PER_CANALE, oldest_first=False):
+        async for msg in canale.history(limit=BACKUP_MESSAGGI_PER_CANALE, oldest_first=True):
             messaggi.append({
                 "id":          str(msg.id),
                 "autore":      str(msg.author),
                 "autore_id":   str(msg.author.id),
+                "autore_avatar": str(msg.author.display_avatar.url) if msg.author.display_avatar else None,
                 "contenuto":   msg.content,
                 "timestamp":   msg.created_at.isoformat(),
                 "pinned":      msg.pinned,
                 "tipo":        msg.type.name,
                 "attachments": [{"nome": a.filename, "url": a.url} for a in msg.attachments],
-                "embeds":      [e.title or "" for e in msg.embeds],
+                "embeds":      [{"titolo": e.title or "", "desc": e.description or "", "url": e.url or ""} for e in msg.embeds],
                 "reactions":   [{"emoji": str(r.emoji), "count": r.count} for r in msg.reactions],
             })
     except discord.Forbidden:
@@ -8814,6 +8816,86 @@ async def _ripristina_canali(guild: discord.Guild, canali: list, msg_dm):
     return creati
 
 
+@bot.tree.command(name="backup", description="💾 Esegui il backup completo del server (solo Developer)")
+@is_dev_or_owner()
+async def backup_server(interaction: discord.Interaction):
+    """Backup COMPLETO: ruoli, canali, permessi, TUTTI i messaggi. Risultato via DM silenzioso."""
+    await interaction.response.defer(ephemeral=True, thinking=True)
+    guild = interaction.guild
+    if guild is None:
+        return await interaction.followup.send("❌ Devi usare questo comando in un server.", ephemeral=True)
+
+    output_file = f"backup_{guild.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+    try:
+        riepilogo, codice_ripristino = await _esegui_backup_completo(
+            guild, output_file=output_file, dm_user=interaction.user
+        )
+    except Exception as e:
+        return await interaction.followup.send(f"❌ Errore durante il backup: `{e}`", ephemeral=True)
+
+    embed = discord.Embed(
+        title="✅ Backup completato",
+        description=(
+            f"**Server:** {guild.name} (`{guild.id}`)\n"
+            f"**File:** `{output_file}`\n\n"
+            f"{riepilogo}\n\n"
+            f"📩 **Codice ripristino inviato in DM** — usalo con `/ripristina`."
+        ),
+        color=discord.Color.from_rgb(255, 107, 53),
+        timestamp=datetime.now()
+    )
+    embed.set_footer(text=f"Richiesto da {interaction.user}", icon_url=interaction.user.display_avatar.url)
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+# ─── Helper: ripristina messaggi via webhook ──────────────────────────────────
+
+async def _ripristina_messaggi_canale(canale: discord.TextChannel, messaggi: list):
+    """Reinvia i messaggi salvati nel canale usando un webhook temporaneo (simula l'autore originale)."""
+    if not messaggi:
+        return 0
+    # Crea webhook temporaneo
+    try:
+        wh = await canale.create_webhook(name="Ripristino Backup")
+    except Exception:
+        return 0
+
+    inviati = 0
+    try:
+        for msg in messaggi:
+            if msg.get("errore"):
+                continue
+            contenuto = msg.get("contenuto", "")
+            # Gestisci allegati: invia solo URL se presenti
+            allegati_str = ""
+            for att in msg.get("attachments", []):
+                allegati_str += f"\n📎 [{att['nome']}]({att['url']})"
+            testo_finale = (contenuto + allegati_str).strip()
+            if not testo_finale:
+                continue
+            # Tronca a 2000 caratteri (limite Discord)
+            testo_finale = testo_finale[:2000]
+            ts = msg.get("timestamp", "")
+            footer_ts = f"\n`[{ts[:19].replace('T', ' ')} UTC]`" if ts else ""
+            testo_finale = (testo_finale + footer_ts)[:2000]
+            try:
+                await wh.send(
+                    content=testo_finale,
+                    username=msg.get("autore", "Utente"),
+                    avatar_url=msg.get("autore_avatar") or discord.Embed.Empty,
+                )
+                inviati += 1
+                await asyncio.sleep(0.7)  # anti rate-limit
+            except Exception:
+                pass
+    finally:
+        try:
+            await wh.delete()
+        except Exception:
+            pass
+    return inviati
+
+
 @bot.tree.command(name="ripristina", description="♻️ Ripristina un backup su un server (solo Developer)")
 @is_dev_or_owner()
 async def ripristina_server(interaction: discord.Interaction, codice: str, guild_id: str):
@@ -8864,51 +8946,85 @@ async def ripristina_server(interaction: discord.Interaction, codice: str, guild
     except discord.Forbidden:
         pass
 
-    ruoli_creati = 0
-    canali_creati = 0
+    ruoli_creati   = 0
+    canali_creati  = 0
+    messaggi_inviati = 0
+
+    async def _aggiorna_dm_ripristino(testo: str):
+        if msg_dm:
+            try:
+                await msg_dm.edit(content=testo)
+            except Exception:
+                pass
 
     try:
-        # ── Ripristina ruoli ──
-        if msg_dm:
-            try:
-                await msg_dm.edit(content=(
-                    f"🔄 **Ripristino in corso — {guild_dest.name}**\n"
-                    f"`{'░' * 10}` **0%**\n➤ 👑 Creazione ruoli..."
-                ))
-            except Exception:
-                pass
+        # ── Fase 1: Ripristina ruoli ──
+        await _aggiorna_dm_ripristino(
+            f"🔄 **Ripristino in corso — {guild_dest.name}**\n"
+            f"`{'░' * 10}` **0%**\n➤ 👑 Creazione ruoli..."
+        )
         ruoli_creati = await _ripristina_ruoli(guild_dest, dati.get("ruoli", []), msg_dm, len(dati.get("ruoli", [])))
 
-        # ── Ripristina canali ──
-        if msg_dm:
-            try:
-                await msg_dm.edit(content=(
-                    f"🔄 **Ripristino in corso — {guild_dest.name}**\n"
-                    f"`{'█' * 5}{'░' * 5}` **50%**\n➤ 📁 Creazione canali..."
-                ))
-            except Exception:
-                pass
+        # ── Fase 2: Ripristina canali ──
+        await _aggiorna_dm_ripristino(
+            f"🔄 **Ripristino in corso — {guild_dest.name}**\n"
+            f"`{'███░░░░░░░'}` **30%**\n➤ 📁 Creazione canali e permessi..."
+        )
         canali_creati = await _ripristina_canali(guild_dest, dati.get("canali", []), msg_dm)
 
+        # ── Fase 3: Ripristina messaggi via webhook ──
+        canali_backup = dati.get("canali", [])
+        n_canali_msg  = len([c for c in canali_backup if c.get("messaggi") or c.get("thread")])
+        idx = 0
+        for c_data in canali_backup:
+            messaggi = c_data.get("messaggi", [])
+            nome_canale = c_data.get("nome", "?")
+            if messaggi and not any(m.get("errore") for m in messaggi):
+                # Trova il canale nel server destinazione per nome
+                canale_dest = discord.utils.get(guild_dest.text_channels, name=nome_canale)
+                if canale_dest:
+                    idx += 1
+                    perc = 30 + int(idx / max(n_canali_msg, 1) * 65)
+                    await _aggiorna_dm_ripristino(
+                        f"🔄 **Ripristino in corso — {guild_dest.name}**\n"
+                        f"`{_bk_barra(min(perc // 10, 10))}` **{perc}%**\n"
+                        f"➤ 💬 Messaggi: #{nome_canale} ({idx}/{n_canali_msg})"
+                    )
+                    inviati = await _ripristina_messaggi_canale(canale_dest, messaggi)
+                    messaggi_inviati += inviati
+
+            # Ripristina messaggi nei thread
+            for thread_data in c_data.get("thread", []):
+                t_messaggi = thread_data.get("messaggi", [])
+                t_nome     = thread_data.get("nome", "?")
+                if t_messaggi and not any(m.get("errore") for m in t_messaggi):
+                    # Cerca il thread nel server destinazione
+                    canale_parent = discord.utils.get(guild_dest.text_channels, name=nome_canale)
+                    if canale_parent:
+                        thread_dest = discord.utils.get(canale_parent.threads, name=t_nome)
+                        if thread_dest is None:
+                            try:
+                                thread_dest = await canale_parent.create_thread(
+                                    name=t_nome, auto_archive_duration=1440
+                                )
+                            except Exception:
+                                thread_dest = None
+                        if thread_dest:
+                            inviati = await _ripristina_messaggi_canale(thread_dest, t_messaggi)
+                            messaggi_inviati += inviati
+
     except Exception as e:
-        if msg_dm:
-            try:
-                await msg_dm.edit(content=f"❌ Errore durante il ripristino: `{e}`")
-            except Exception:
-                pass
+        await _aggiorna_dm_ripristino(f"❌ Errore durante il ripristino: `{e}`")
         return await interaction.followup.send(f"❌ Errore ripristino: `{e}`", ephemeral=True)
 
     # DM finale
-    if msg_dm:
-        try:
-            await msg_dm.edit(content=(
-                f"✅ **Ripristino completato — {guild_dest.name}**\n"
-                f"`{'█' * 10}` **100%**\n\n"
-                f"👑 Ruoli creati: **{ruoli_creati}**\n"
-                f"📁 Canali creati: **{canali_creati}**"
-            ))
-        except Exception:
-            pass
+    await _aggiorna_dm_ripristino(
+        f"✅ **Ripristino completato — {guild_dest.name}**\n"
+        f"`{'█' * 10}` **100%**\n\n"
+        f"👑 Ruoli creati: **{ruoli_creati}**\n"
+        f"📁 Canali creati: **{canali_creati}**\n"
+        f"💬 Messaggi ripristinati: **{messaggi_inviati}**"
+    )
 
     embed = discord.Embed(
         title="✅ Ripristino completato",
@@ -8916,7 +9032,8 @@ async def ripristina_server(interaction: discord.Interaction, codice: str, guild
             f"**Server destinazione:** {guild_dest.name} (`{guild_dest.id}`)\n"
             f"**Sorgente backup:** `{output_file}`\n\n"
             f"👑 Ruoli creati: **{ruoli_creati}**\n"
-            f"📁 Canali creati: **{canali_creati}**"
+            f"📁 Canali creati: **{canali_creati}**\n"
+            f"💬 Messaggi ripristinati: **{messaggi_inviati}**"
         ),
         color=discord.Color.from_rgb(255, 107, 53),
         timestamp=datetime.now()
