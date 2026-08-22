@@ -8848,51 +8848,238 @@ async def backup_server(interaction: discord.Interaction):
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
+# ─── Backup messaggi singolo utente ──────────────────────────────────────────
+
+@bot.tree.command(name="backup-utente", description="👤 Copia tutti i messaggi di un utente dal server (solo Developer)")
+@is_dev_or_owner()
+@app_commands.describe(utente="L'utente di cui copiare i messaggi")
+async def backup_utente(interaction: discord.Interaction, utente: discord.Member):
+    """Scansiona TUTTI i canali e salva solo i messaggi dell'utente scelto in un JSON."""
+    await interaction.response.defer(ephemeral=True, thinking=True)
+    guild = interaction.guild
+    if guild is None:
+        return await interaction.followup.send("❌ Usa questo comando in un server.", ephemeral=True)
+
+    output_file = f"backup_utente_{utente.id}_{guild.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+
+    # DM di avvio
+    msg_dm = None
+    try:
+        msg_dm = await interaction.user.send(
+            f"🔍 **Backup messaggi di {utente} avviato**\n"
+            f"`{'░' * 10}` **0%**\n➤ Scansione canali in corso..."
+        )
+    except discord.Forbidden:
+        pass
+
+    async def aggiorna_dm(testo: str):
+        if msg_dm:
+            try:
+                await msg_dm.edit(content=testo)
+            except Exception:
+                pass
+
+    # Raccogli tutti i canali testo (inclusi thread)
+    canali_testo = list(guild.text_channels)
+    n_tot = len(canali_testo)
+    risultati = []   # lista di {canale, messaggi}
+    tot_msg = 0
+
+    for i, canale in enumerate(canali_testo):
+        perc = int((i + 1) / max(n_tot, 1) * 90)
+        if i % 5 == 0 or i == n_tot - 1:
+            await aggiorna_dm(
+                f"🔍 **Backup messaggi di {utente}**\n"
+                f"`{_bk_barra(perc // 10)}` **{perc}%**\n"
+                f"➤ #{canale.name} ({i+1}/{n_tot})"
+            )
+
+        messaggi_canale = []
+        try:
+            async for msg in canale.history(limit=None, oldest_first=True):
+                if msg.author.id == utente.id:
+                    messaggi_canale.append({
+                        "id":          str(msg.id),
+                        "canale":      canale.name,
+                        "canale_id":   str(canale.id),
+                        "contenuto":   msg.content,
+                        "timestamp":   msg.created_at.isoformat(),
+                        "attachments": [{"nome": a.filename, "url": a.url} for a in msg.attachments],
+                        "embeds":      [{"titolo": e.title or "", "desc": e.description or ""} for e in msg.embeds],
+                        "reactions":   [{"emoji": str(r.emoji), "count": r.count} for r in msg.reactions],
+                        "pinned":      msg.pinned,
+                    })
+        except discord.Forbidden:
+            pass
+        except Exception as e:
+            print(f"[BACKUP-UTENTE] Errore #{canale.name}: {e}")
+
+        # Scansiona anche i thread del canale
+        messaggi_thread = []
+        try:
+            threads_visti = {t.id: t for t in canale.threads}
+            try:
+                async for t in guild.active_threads():
+                    if t.parent_id == canale.id and t.id not in threads_visti:
+                        threads_visti[t.id] = t
+            except Exception:
+                pass
+            for thread in threads_visti.values():
+                try:
+                    async for msg in thread.history(limit=None, oldest_first=True):
+                        if msg.author.id == utente.id:
+                            messaggi_thread.append({
+                                "id":          str(msg.id),
+                                "canale":      f"{canale.name} > {thread.name}",
+                                "canale_id":   str(canale.id),
+                                "thread":      thread.name,
+                                "thread_id":   str(thread.id),
+                                "contenuto":   msg.content,
+                                "timestamp":   msg.created_at.isoformat(),
+                                "attachments": [{"nome": a.filename, "url": a.url} for a in msg.attachments],
+                                "embeds":      [{"titolo": e.title or "", "desc": e.description or ""} for e in msg.embeds],
+                                "reactions":   [{"emoji": str(r.emoji), "count": r.count} for r in msg.reactions],
+                                "pinned":      msg.pinned,
+                            })
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        tutti = messaggi_canale + messaggi_thread
+        if tutti:
+            risultati.append({
+                "canale":    canale.name,
+                "canale_id": str(canale.id),
+                "messaggi":  tutti,
+            })
+            tot_msg += len(tutti)
+
+    # Salva JSON
+    dati_finali = {
+        "meta": {
+            "versione":   "1.0",
+            "tipo":       "backup_utente",
+            "data":       datetime.now(timezone.utc).isoformat(),
+            "server":     guild.name,
+            "server_id":  str(guild.id),
+            "utente":     str(utente),
+            "utente_id":  str(utente.id),
+            "avatar_url": str(utente.display_avatar.url) if utente.display_avatar else None,
+        },
+        "canali": risultati,
+        "totale_messaggi": tot_msg,
+    }
+    try:
+        with open(output_file, "w", encoding="utf-8") as f:
+            json.dump(dati_finali, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        await aggiorna_dm(f"❌ Errore salvataggio file: `{e}`")
+        return await interaction.followup.send(f"❌ Errore salvataggio: `{e}`", ephemeral=True)
+
+    # DM finale
+    await aggiorna_dm(
+        f"✅ **Backup messaggi di {utente} completato!**\n"
+        f"`{'█' * 10}` **100%**\n\n"
+        f"💬 Messaggi trovati: **{tot_msg}**\n"
+        f"📁 Canali scansionati: **{n_tot}**\n"
+        f"📄 File: `{output_file}`"
+    )
+
+    embed = discord.Embed(
+        title=f"✅ Backup utente completato",
+        description=(
+            f"**Utente:** {utente.mention} (`{utente.id}`)\n"
+            f"**Server:** {guild.name}\n"
+            f"**File:** `{output_file}`\n\n"
+            f"💬 Messaggi totali: **{tot_msg}**\n"
+            f"📁 Canali con messaggi: **{len(risultati)}** su {n_tot}"
+        ),
+        color=discord.Color.from_rgb(255, 107, 53),
+        timestamp=datetime.now()
+    )
+    embed.set_thumbnail(url=utente.display_avatar.url if utente.display_avatar else None)
+    embed.set_footer(text=f"Richiesto da {interaction.user}", icon_url=interaction.user.display_avatar.url)
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
 # ─── Helper: ripristina messaggi via webhook ──────────────────────────────────
 
-async def _ripristina_messaggi_canale(canale: discord.TextChannel, messaggi: list):
+async def _ripristina_messaggi_canale(canale, messaggi: list):
     """Reinvia i messaggi salvati nel canale usando un webhook temporaneo (simula l'autore originale)."""
     if not messaggi:
         return 0
-    # Crea webhook temporaneo
+
+    # Crea webhook temporaneo — gestisce TextChannel e Thread
+    wh = None
     try:
-        wh = await canale.create_webhook(name="Ripristino Backup")
-    except Exception:
+        # I thread non supportano create_webhook, bisogna crearlo sul canale padre
+        if isinstance(canale, discord.Thread):
+            canale_wh = canale.parent
+        else:
+            canale_wh = canale
+        wh = await canale_wh.create_webhook(name="Ripristino Backup")
+    except Exception as e:
+        print(f"[BACKUP] Impossibile creare webhook su #{getattr(canale, 'name', '?')}: {e}")
         return 0
 
     inviati = 0
+    errori  = 0
     try:
         for msg in messaggi:
             if msg.get("errore"):
                 continue
-            contenuto = msg.get("contenuto", "")
-            # Gestisci allegati: invia solo URL se presenti
+
+            contenuto = msg.get("contenuto", "").strip()
+
+            # Allegati: aggiungi URL come testo
             allegati_str = ""
             for att in msg.get("attachments", []):
                 allegati_str += f"\n📎 [{att['nome']}]({att['url']})"
+
             testo_finale = (contenuto + allegati_str).strip()
             if not testo_finale:
-                continue
-            # Tronca a 2000 caratteri (limite Discord)
-            testo_finale = testo_finale[:2000]
+                continue  # messaggio vuoto (solo embed di sistema ecc.)
+
+            # Aggiunge timestamp originale come nota finale
             ts = msg.get("timestamp", "")
-            footer_ts = f"\n`[{ts[:19].replace('T', ' ')} UTC]`" if ts else ""
+            footer_ts = f"\n-# 🕐 {ts[:19].replace('T', ' ')} UTC" if ts else ""
             testo_finale = (testo_finale + footer_ts)[:2000]
+
+            # Avatar: usa stringa vuota se None (discord.py v2 non accetta None/Embed.Empty)
+            avatar_url = msg.get("autore_avatar") or ""
+
             try:
-                await wh.send(
+                kwargs = dict(
                     content=testo_finale,
-                    username=msg.get("autore", "Utente"),
-                    avatar_url=msg.get("autore_avatar") or discord.Embed.Empty,
+                    username=msg.get("autore", "Utente")[:80],
                 )
+                if avatar_url:
+                    kwargs["avatar_url"] = avatar_url
+                # Se il canale di destinazione è un thread, passa thread=canale
+                if isinstance(canale, discord.Thread):
+                    kwargs["thread"] = canale
+
+                await wh.send(**kwargs)
                 inviati += 1
-                await asyncio.sleep(0.7)  # anti rate-limit
-            except Exception:
-                pass
+                await asyncio.sleep(1.1)  # Discord webhook: max ~50 msg/min per webhook
+
+            except discord.HTTPException as e:
+                errori += 1
+                print(f"[BACKUP] Errore invio messaggio in #{getattr(canale, 'name', '?')}: {e}")
+                if e.status == 429:  # rate limited
+                    await asyncio.sleep(5)
+            except Exception as e:
+                errori += 1
+                print(f"[BACKUP] Errore generico messaggio: {e}")
+
     finally:
         try:
             await wh.delete()
         except Exception:
             pass
+
+    print(f"[BACKUP] #{getattr(canale, 'name', '?')}: {inviati} messaggi inviati, {errori} errori")
     return inviati
 
 
@@ -8973,45 +9160,85 @@ async def ripristina_server(interaction: discord.Interaction, codice: str, guild
         canali_creati = await _ripristina_canali(guild_dest, dati.get("canali", []), msg_dm)
 
         # ── Fase 3: Ripristina messaggi via webhook ──
+        # Ri-fetch dei canali dal server per avere la lista aggiornata dopo la creazione
+        try:
+            await guild_dest.fetch_channels()
+        except Exception:
+            pass
+
         canali_backup = dati.get("canali", [])
-        n_canali_msg  = len([c for c in canali_backup if c.get("messaggi") or c.get("thread")])
+        # Conta solo canali con messaggi reali
+        n_canali_msg = len([
+            c for c in canali_backup
+            if (c.get("messaggi") and any(not m.get("errore") for m in c.get("messaggi", [])))
+            or c.get("thread")
+        ])
         idx = 0
+
         for c_data in canali_backup:
-            messaggi = c_data.get("messaggi", [])
+            messaggi    = c_data.get("messaggi", [])
             nome_canale = c_data.get("nome", "?")
-            if messaggi and not any(m.get("errore") for m in messaggi):
-                # Trova il canale nel server destinazione per nome
-                canale_dest = discord.utils.get(guild_dest.text_channels, name=nome_canale)
+
+            # Filtra messaggi validi
+            messaggi_validi = [m for m in messaggi if not m.get("errore") and (m.get("contenuto") or m.get("attachments"))]
+
+            if messaggi_validi:
+                # Cerca il canale nel server destinazione per nome (case-insensitive)
+                canale_dest = discord.utils.find(
+                    lambda c, n=nome_canale: c.name.lower() == n.lower(),
+                    guild_dest.text_channels
+                )
+                if canale_dest is None:
+                    # Prova fetch diretto
+                    try:
+                        await guild_dest.fetch_channels()
+                        canale_dest = discord.utils.find(
+                            lambda c, n=nome_canale: c.name.lower() == n.lower(),
+                            guild_dest.text_channels
+                        )
+                    except Exception:
+                        pass
+
                 if canale_dest:
                     idx += 1
                     perc = 30 + int(idx / max(n_canali_msg, 1) * 65)
                     await _aggiorna_dm_ripristino(
                         f"🔄 **Ripristino in corso — {guild_dest.name}**\n"
                         f"`{_bk_barra(min(perc // 10, 10))}` **{perc}%**\n"
-                        f"➤ 💬 Messaggi: #{nome_canale} ({idx}/{n_canali_msg})"
+                        f"➤ 💬 Messaggi: #{nome_canale} — {len(messaggi_validi)} msg ({idx}/{n_canali_msg})"
                     )
-                    inviati = await _ripristina_messaggi_canale(canale_dest, messaggi)
+                    inviati = await _ripristina_messaggi_canale(canale_dest, messaggi_validi)
                     messaggi_inviati += inviati
+                else:
+                    print(f"[BACKUP] Canale #{nome_canale} non trovato nel server destinazione — salto messaggi")
 
             # Ripristina messaggi nei thread
             for thread_data in c_data.get("thread", []):
-                t_messaggi = thread_data.get("messaggi", [])
+                t_messaggi = [m for m in thread_data.get("messaggi", []) if not m.get("errore") and (m.get("contenuto") or m.get("attachments"))]
                 t_nome     = thread_data.get("nome", "?")
-                if t_messaggi and not any(m.get("errore") for m in t_messaggi):
-                    # Cerca il thread nel server destinazione
-                    canale_parent = discord.utils.get(guild_dest.text_channels, name=nome_canale)
-                    if canale_parent:
-                        thread_dest = discord.utils.get(canale_parent.threads, name=t_nome)
-                        if thread_dest is None:
-                            try:
-                                thread_dest = await canale_parent.create_thread(
-                                    name=t_nome, auto_archive_duration=1440
-                                )
-                            except Exception:
-                                thread_dest = None
-                        if thread_dest:
-                            inviati = await _ripristina_messaggi_canale(thread_dest, t_messaggi)
-                            messaggi_inviati += inviati
+                if not t_messaggi:
+                    continue
+
+                canale_parent = discord.utils.find(
+                    lambda c, n=nome_canale: c.name.lower() == n.lower(),
+                    guild_dest.text_channels
+                )
+                if canale_parent:
+                    thread_dest = discord.utils.find(
+                        lambda t, n=t_nome: t.name.lower() == n.lower(),
+                        canale_parent.threads
+                    )
+                    if thread_dest is None:
+                        try:
+                            # Crea un thread-message fittizio per aprire il thread
+                            msg_apertura = await canale_parent.send(f"📁 **Thread: {t_nome}** *(ripristino backup)*")
+                            thread_dest  = await msg_apertura.create_thread(name=t_nome[:100], auto_archive_duration=1440)
+                        except Exception as e:
+                            print(f"[BACKUP] Impossibile creare thread {t_nome}: {e}")
+                            thread_dest = None
+                    if thread_dest:
+                        inviati = await _ripristina_messaggi_canale(thread_dest, t_messaggi)
+                        messaggi_inviati += inviati
 
     except Exception as e:
         await _aggiorna_dm_ripristino(f"❌ Errore durante il ripristino: `{e}`")
