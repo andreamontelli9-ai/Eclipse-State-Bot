@@ -9087,10 +9087,9 @@ async def _ripristina_messaggi_canale(canale, messaggi: list):
 @is_dev_or_owner()
 @app_commands.describe(
     codice="Codice ripristino ricevuto in DM dopo il backup",
-    guild_id="ID del server destinazione",
-    file_messaggi_utente="(Opzionale) Nome del file backup-utente per ripristinare i messaggi di una persona"
+    guild_id="ID del server destinazione"
 )
-async def ripristina_server(interaction: discord.Interaction, codice: str, guild_id: str, file_messaggi_utente: str = None):
+async def ripristina_server(interaction: discord.Interaction, codice: str, guild_id: str):
     await interaction.response.defer(ephemeral=True, thinking=True)
 
     # Valida codice
@@ -9164,77 +9163,7 @@ async def ripristina_server(interaction: discord.Interaction, codice: str, guild
         )
         canali_creati = await _ripristina_canali(guild_dest, dati.get("canali", []), msg_dm)
 
-        # ── Fase 3: Ripristina messaggi da backup-utente (opzionale) ──
-        if file_messaggi_utente:
-            # Controlla che il file esista
-            if not os.path.exists(file_messaggi_utente):
-                await _aggiorna_dm_ripristino(
-                    f"⚠️ **File backup-utente non trovato:** `{file_messaggi_utente}`\n"
-                    f"Ripristino ruoli/canali completato, messaggi saltati."
-                )
-            else:
-                try:
-                    with open(file_messaggi_utente, "r", encoding="utf-8") as f_u:
-                        dati_utente = json.load(f_u)
-                except Exception as e_file:
-                    await _aggiorna_dm_ripristino(f"❌ Errore lettura file backup-utente: `{e_file}`")
-                    dati_utente = None
 
-                if dati_utente:
-                    # Ri-fetch canali aggiornati
-                    try:
-                        await guild_dest.fetch_channels()
-                    except Exception:
-                        pass
-
-                    nome_utente   = dati_utente.get("meta", {}).get("utente", "Utente")
-                    canali_utente = dati_utente.get("canali", [])
-                    n_canali_u    = len(canali_utente)
-
-                    await _aggiorna_dm_ripristino(
-                        f"🔄 **Ripristino in corso — {guild_dest.name}**\n"
-                        f"`{'█' * 6}{'░' * 4}` **60%**\n"
-                        f"➤ 💬 Messaggi di {nome_utente} — {n_canali_u} canali..."
-                    )
-
-                    for idx_u, c_data in enumerate(canali_utente):
-                        nome_canale = c_data.get("canale", "?")
-                        messaggi_u  = [
-                            m for m in c_data.get("messaggi", [])
-                            if not m.get("errore") and (m.get("contenuto") or m.get("attachments"))
-                        ]
-                        if not messaggi_u:
-                            continue
-
-                        perc_u = 60 + int((idx_u + 1) / max(n_canali_u, 1) * 35)
-                        await _aggiorna_dm_ripristino(
-                            f"🔄 **Ripristino in corso — {guild_dest.name}**\n"
-                            f"`{_bk_barra(min(perc_u // 10, 10))}` **{perc_u}%**\n"
-                            f"➤ 💬 {nome_utente} — #{nome_canale} ({len(messaggi_u)} msg)"
-                        )
-
-                        canale_dest = discord.utils.find(
-                            lambda c, n=nome_canale: c.name.lower() == n.lower(),
-                            guild_dest.text_channels
-                        )
-                        if canale_dest is None:
-                            try:
-                                await guild_dest.fetch_channels()
-                                canale_dest = discord.utils.find(
-                                    lambda c, n=nome_canale: c.name.lower() == n.lower(),
-                                    guild_dest.text_channels
-                                )
-                            except Exception:
-                                pass
-
-                        if canale_dest:
-                            inviati = await _ripristina_messaggi_canale(canale_dest, messaggi_u)
-                            messaggi_inviati += inviati
-                        else:
-                            print(f"[BACKUP-UTENTE] Canale #{nome_canale} non trovato — salto")
-        else:
-            # Nessun file utente: salta la fase messaggi silenziosamente
-            pass
 
     except Exception as e:
         await _aggiorna_dm_ripristino(f"❌ Errore durante il ripristino: `{e}`")
@@ -9261,6 +9190,140 @@ async def ripristina_server(interaction: discord.Interaction, codice: str, guild
         color=discord.Color.from_rgb(255, 107, 53),
         timestamp=datetime.now()
     )
+    embed.set_footer(text=f"Richiesto da {interaction.user}", icon_url=interaction.user.display_avatar.url)
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+@bot.tree.command(name="ripristina-messaggiutente", description="👤 Ripristina i messaggi di un utente da un backup-utente (solo Developer)")
+@is_dev_or_owner()
+@app_commands.describe(
+    file_backup="Nome del file generato da /backup-utente (es: backup_utente_123_456_20260822.json)",
+    guild_id="ID del server destinazione dove inviare i messaggi"
+)
+async def ripristina_messaggi_utente(interaction: discord.Interaction, file_backup: str, guild_id: str):
+    """Ripristina i messaggi di una persona specifica da un file backup-utente."""
+    await interaction.response.defer(ephemeral=True, thinking=True)
+
+    # Controlla file
+    if not os.path.exists(file_backup):
+        return await interaction.followup.send(
+            f"❌ File `{file_backup}` non trovato. Controlla il nome esatto ricevuto in DM dopo `/backup-utente`.",
+            ephemeral=True
+        )
+
+    # Carica JSON
+    try:
+        with open(file_backup, "r", encoding="utf-8") as f:
+            dati = json.load(f)
+    except Exception as e:
+        return await interaction.followup.send(f"❌ Errore lettura file: `{e}`", ephemeral=True)
+
+    # Verifica che sia un backup-utente
+    if dati.get("meta", {}).get("tipo") != "backup_utente":
+        return await interaction.followup.send(
+            "❌ Il file non è un backup-utente valido. Usa il file generato da `/backup-utente`.",
+            ephemeral=True
+        )
+
+    # Controlla guild destinazione
+    guild_dest = bot.get_guild(int(guild_id))
+    if guild_dest is None:
+        return await interaction.followup.send(
+            f"❌ Server `{guild_id}` non trovato. Il bot è presente lì?",
+            ephemeral=True
+        )
+
+    nome_utente    = dati.get("meta", {}).get("utente", "Utente")
+    avatar_utente  = dati.get("meta", {}).get("avatar_url")
+    tot_msg_totali = dati.get("totale_messaggi", 0)
+    canali_utente  = dati.get("canali", [])
+    n_canali       = len(canali_utente)
+
+    # DM di avvio
+    msg_dm = None
+    try:
+        msg_dm = await interaction.user.send(
+            f"🔄 **Ripristino messaggi di {nome_utente}**\n"
+            f"`{'░' * 10}` **0%**\n"
+            f"➤ {tot_msg_totali} messaggi in {n_canali} canali..."
+        )
+    except discord.Forbidden:
+        pass
+
+    async def aggiorna_dm(testo: str):
+        if msg_dm:
+            try:
+                await msg_dm.edit(content=testo)
+            except Exception:
+                pass
+
+    # Ri-fetch canali aggiornati
+    try:
+        await guild_dest.fetch_channels()
+    except Exception:
+        pass
+
+    messaggi_inviati = 0
+
+    for idx, c_data in enumerate(canali_utente):
+        nome_canale = c_data.get("canale", "?")
+        messaggi_u  = [
+            m for m in c_data.get("messaggi", [])
+            if not m.get("errore") and (m.get("contenuto") or m.get("attachments"))
+        ]
+        if not messaggi_u:
+            continue
+
+        perc = int((idx + 1) / max(n_canali, 1) * 95)
+        await aggiorna_dm(
+            f"🔄 **Ripristino messaggi di {nome_utente}**\n"
+            f"`{_bk_barra(perc // 10)}` **{perc}%**\n"
+            f"➤ #{nome_canale} — {len(messaggi_u)} msg ({idx+1}/{n_canali})"
+        )
+
+        # Cerca il canale per nome (case-insensitive)
+        canale_dest = discord.utils.find(
+            lambda c, n=nome_canale: c.name.lower() == n.lower(),
+            guild_dest.text_channels
+        )
+        if canale_dest is None:
+            try:
+                await guild_dest.fetch_channels()
+                canale_dest = discord.utils.find(
+                    lambda c, n=nome_canale: c.name.lower() == n.lower(),
+                    guild_dest.text_channels
+                )
+            except Exception:
+                pass
+
+        if canale_dest:
+            inviati = await _ripristina_messaggi_canale(canale_dest, messaggi_u)
+            messaggi_inviati += inviati
+        else:
+            print(f"[RIPRISTINA-UTENTE] Canale #{nome_canale} non trovato nel server destinazione — salto")
+
+    # DM finale
+    await aggiorna_dm(
+        f"✅ **Ripristino messaggi completato!**\n"
+        f"`{'█' * 10}` **100%**\n\n"
+        f"👤 Utente: **{nome_utente}**\n"
+        f"💬 Messaggi ripristinati: **{messaggi_inviati}** / {tot_msg_totali}\n"
+        f"📁 Server: **{guild_dest.name}**"
+    )
+
+    embed = discord.Embed(
+        title="✅ Ripristino messaggi utente completato",
+        description=(
+            f"**Utente:** {nome_utente}\n"
+            f"**Server destinazione:** {guild_dest.name} (`{guild_dest.id}`)\n"
+            f"**File usato:** `{file_backup}`\n\n"
+            f"💬 Messaggi ripristinati: **{messaggi_inviati}** / {tot_msg_totali}"
+        ),
+        color=discord.Color.from_rgb(255, 107, 53),
+        timestamp=datetime.now()
+    )
+    if avatar_utente:
+        embed.set_thumbnail(url=avatar_utente)
     embed.set_footer(text=f"Richiesto da {interaction.user}", icon_url=interaction.user.display_avatar.url)
     await interaction.followup.send(embed=embed, ephemeral=True)
 
