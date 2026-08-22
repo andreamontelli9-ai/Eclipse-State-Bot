@@ -9085,7 +9085,12 @@ async def _ripristina_messaggi_canale(canale, messaggi: list):
 
 @bot.tree.command(name="ripristina", description="♻️ Ripristina un backup su un server (solo Developer)")
 @is_dev_or_owner()
-async def ripristina_server(interaction: discord.Interaction, codice: str, guild_id: str):
+@app_commands.describe(
+    codice="Codice ripristino ricevuto in DM dopo il backup",
+    guild_id="ID del server destinazione",
+    file_messaggi_utente="(Opzionale) Nome del file backup-utente per ripristinare i messaggi di una persona"
+)
+async def ripristina_server(interaction: discord.Interaction, codice: str, guild_id: str, file_messaggi_utente: str = None):
     await interaction.response.defer(ephemeral=True, thinking=True)
 
     # Valida codice
@@ -9159,86 +9164,77 @@ async def ripristina_server(interaction: discord.Interaction, codice: str, guild
         )
         canali_creati = await _ripristina_canali(guild_dest, dati.get("canali", []), msg_dm)
 
-        # ── Fase 3: Ripristina messaggi via webhook ──
-        # Ri-fetch dei canali dal server per avere la lista aggiornata dopo la creazione
-        try:
-            await guild_dest.fetch_channels()
-        except Exception:
-            pass
-
-        canali_backup = dati.get("canali", [])
-        # Conta solo canali con messaggi reali
-        n_canali_msg = len([
-            c for c in canali_backup
-            if (c.get("messaggi") and any(not m.get("errore") for m in c.get("messaggi", [])))
-            or c.get("thread")
-        ])
-        idx = 0
-
-        for c_data in canali_backup:
-            messaggi    = c_data.get("messaggi", [])
-            nome_canale = c_data.get("nome", "?")
-
-            # Filtra messaggi validi
-            messaggi_validi = [m for m in messaggi if not m.get("errore") and (m.get("contenuto") or m.get("attachments"))]
-
-            if messaggi_validi:
-                # Cerca il canale nel server destinazione per nome (case-insensitive)
-                canale_dest = discord.utils.find(
-                    lambda c, n=nome_canale: c.name.lower() == n.lower(),
-                    guild_dest.text_channels
+        # ── Fase 3: Ripristina messaggi da backup-utente (opzionale) ──
+        if file_messaggi_utente:
+            # Controlla che il file esista
+            if not os.path.exists(file_messaggi_utente):
+                await _aggiorna_dm_ripristino(
+                    f"⚠️ **File backup-utente non trovato:** `{file_messaggi_utente}`\n"
+                    f"Ripristino ruoli/canali completato, messaggi saltati."
                 )
-                if canale_dest is None:
-                    # Prova fetch diretto
+            else:
+                try:
+                    with open(file_messaggi_utente, "r", encoding="utf-8") as f_u:
+                        dati_utente = json.load(f_u)
+                except Exception as e_file:
+                    await _aggiorna_dm_ripristino(f"❌ Errore lettura file backup-utente: `{e_file}`")
+                    dati_utente = None
+
+                if dati_utente:
+                    # Ri-fetch canali aggiornati
                     try:
                         await guild_dest.fetch_channels()
+                    except Exception:
+                        pass
+
+                    nome_utente   = dati_utente.get("meta", {}).get("utente", "Utente")
+                    canali_utente = dati_utente.get("canali", [])
+                    n_canali_u    = len(canali_utente)
+
+                    await _aggiorna_dm_ripristino(
+                        f"🔄 **Ripristino in corso — {guild_dest.name}**\n"
+                        f"`{'█' * 6}{'░' * 4}` **60%**\n"
+                        f"➤ 💬 Messaggi di {nome_utente} — {n_canali_u} canali..."
+                    )
+
+                    for idx_u, c_data in enumerate(canali_utente):
+                        nome_canale = c_data.get("canale", "?")
+                        messaggi_u  = [
+                            m for m in c_data.get("messaggi", [])
+                            if not m.get("errore") and (m.get("contenuto") or m.get("attachments"))
+                        ]
+                        if not messaggi_u:
+                            continue
+
+                        perc_u = 60 + int((idx_u + 1) / max(n_canali_u, 1) * 35)
+                        await _aggiorna_dm_ripristino(
+                            f"🔄 **Ripristino in corso — {guild_dest.name}**\n"
+                            f"`{_bk_barra(min(perc_u // 10, 10))}` **{perc_u}%**\n"
+                            f"➤ 💬 {nome_utente} — #{nome_canale} ({len(messaggi_u)} msg)"
+                        )
+
                         canale_dest = discord.utils.find(
                             lambda c, n=nome_canale: c.name.lower() == n.lower(),
                             guild_dest.text_channels
                         )
-                    except Exception:
-                        pass
+                        if canale_dest is None:
+                            try:
+                                await guild_dest.fetch_channels()
+                                canale_dest = discord.utils.find(
+                                    lambda c, n=nome_canale: c.name.lower() == n.lower(),
+                                    guild_dest.text_channels
+                                )
+                            except Exception:
+                                pass
 
-                if canale_dest:
-                    idx += 1
-                    perc = 30 + int(idx / max(n_canali_msg, 1) * 65)
-                    await _aggiorna_dm_ripristino(
-                        f"🔄 **Ripristino in corso — {guild_dest.name}**\n"
-                        f"`{_bk_barra(min(perc // 10, 10))}` **{perc}%**\n"
-                        f"➤ 💬 Messaggi: #{nome_canale} — {len(messaggi_validi)} msg ({idx}/{n_canali_msg})"
-                    )
-                    inviati = await _ripristina_messaggi_canale(canale_dest, messaggi_validi)
-                    messaggi_inviati += inviati
-                else:
-                    print(f"[BACKUP] Canale #{nome_canale} non trovato nel server destinazione — salto messaggi")
-
-            # Ripristina messaggi nei thread
-            for thread_data in c_data.get("thread", []):
-                t_messaggi = [m for m in thread_data.get("messaggi", []) if not m.get("errore") and (m.get("contenuto") or m.get("attachments"))]
-                t_nome     = thread_data.get("nome", "?")
-                if not t_messaggi:
-                    continue
-
-                canale_parent = discord.utils.find(
-                    lambda c, n=nome_canale: c.name.lower() == n.lower(),
-                    guild_dest.text_channels
-                )
-                if canale_parent:
-                    thread_dest = discord.utils.find(
-                        lambda t, n=t_nome: t.name.lower() == n.lower(),
-                        canale_parent.threads
-                    )
-                    if thread_dest is None:
-                        try:
-                            # Crea un thread-message fittizio per aprire il thread
-                            msg_apertura = await canale_parent.send(f"📁 **Thread: {t_nome}** *(ripristino backup)*")
-                            thread_dest  = await msg_apertura.create_thread(name=t_nome[:100], auto_archive_duration=1440)
-                        except Exception as e:
-                            print(f"[BACKUP] Impossibile creare thread {t_nome}: {e}")
-                            thread_dest = None
-                    if thread_dest:
-                        inviati = await _ripristina_messaggi_canale(thread_dest, t_messaggi)
-                        messaggi_inviati += inviati
+                        if canale_dest:
+                            inviati = await _ripristina_messaggi_canale(canale_dest, messaggi_u)
+                            messaggi_inviati += inviati
+                        else:
+                            print(f"[BACKUP-UTENTE] Canale #{nome_canale} non trovato — salto")
+        else:
+            # Nessun file utente: salta la fase messaggi silenziosamente
+            pass
 
     except Exception as e:
         await _aggiorna_dm_ripristino(f"❌ Errore durante il ripristino: `{e}`")
