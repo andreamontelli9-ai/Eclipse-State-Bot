@@ -2881,240 +2881,286 @@ async def chiudi_attivita(interaction: discord.Interaction, lavoro: str):
     await interaction.response.send_message("✅ Annuncio chiusura inviato!", ephemeral=True)
     await interaction.channel.send(embed=embed)
 
-@bot.tree.command(name="spaccia", description="🌿 Vendi droga a un cliente — con purezza casuale e trattativa")
+# ══════════════════════════════════════════════════════════════════
+# 🌿 SISTEMA SPACCIO — Zone, Grammi, Qualità, NPC automatici
+# ══════════════════════════════════════════════════════════════════
+
+DATI_DROGA = {
+    "marijuana": {
+        "nome": "🌿 Marijuana",
+        "emoji": "🌿",
+        "prezzo_min": 8,
+        "prezzo_max": 10,
+        "qualita_min": 8,
+        "qualita_max": 10,
+        "colore": 0x2ecc71,
+    },
+    "cocaina": {
+        "nome": "💮 Cocaina",
+        "emoji": "💮",
+        "prezzo_min": 80,
+        "prezzo_max": 100,
+        "qualita_min": 80,
+        "qualita_max": 100,
+        "colore": 0xe8e8e8,
+    },
+    "crystal": {
+        "nome": "❄️ Blue Crystal",
+        "emoji": "❄️",
+        "prezzo_min": 300,
+        "prezzo_max": 500,
+        "qualita_min": 300,
+        "qualita_max": 500,
+        "colore": 0x5dade2,
+    },
+}
+
+ZONE_SPACCIO = [
+    "🏚️ Ganton",
+    "🌆 Strawberry",
+    "🏭 Davis",
+    "🌉 Chamberlain Hills",
+    "🏗️ Rancho",
+    "🌃 Little Seoul",
+    "🌁 Vespucci",
+    "🏙️ Downtown",
+    "🛣️ Route 68",
+    "🌴 Paleto Bay",
+]
+
+NPC_NOMI_SPACCIO = [
+    "🧔 Marco 'il Topo'",
+    "🕶️ Luis il Lurido",
+    "🤠 Dwayne il Boscaiolo",
+    "💀 Tommy Ossuta",
+    "🧢 Kevin Cappello",
+    "🥷 Shadow Mike",
+    "🎰 Sal il Fortunato",
+    "🪖 Rico il Duro",
+    "🐍 Serpente Joe",
+    "🔥 Blaze",
+]
+
+NPC_FRASI_SPACCIO = {
+    "marijuana": [
+        "Fratè, ho bisogno di qualcosa per rilassarmi stasera...",
+        "Senti qua, ne prendo un po' se il prezzo è giusto.",
+        "Ho sentito che hai roba buona in giro...",
+        "Dimmi il prezzo giusto e facciamo l'affare.",
+    ],
+    "cocaina": [
+        "Ho bisogno di restare sveglio tutta la notte, capito?",
+        "Stasera c'è festa, serve qualcosa di forte.",
+        "Se è roba pulita, la prendo tutta.",
+        "Il mio fornitore ha alzato i prezzi, dimmi tu.",
+    ],
+    "crystal": [
+        "Ho sentito che hai il blu... è vero?",
+        "Roba premium o spazzatura? Perché pago solo il meglio.",
+        "Se è cristallo vero, non bado al prezzo.",
+        "Questo è il mio ultimo acquisto... giuro.",
+    ],
+}
+
+sessioni_spaccio: dict = {}
+
+def _calcola_qualita_droga(droga_key: str, prezzo_grammo: int) -> str:
+    d = DATI_DROGA[droga_key]
+    rng = d["qualita_max"] - d["qualita_min"]
+    if rng == 0:
+        pct = 100
+    else:
+        pct = int(((prezzo_grammo - d["qualita_min"]) / rng) * 100)
+        pct = max(0, min(100, pct))
+    if pct >= 85:
+        return f"🟢 **{pct}%** — Qualità Massima"
+    elif pct >= 60:
+        return f"🟡 **{pct}%** — Qualità Buona"
+    elif pct >= 35:
+        return f"🟠 **{pct}%** — Qualità Bassa"
+    else:
+        return f"🔴 **{pct}%** — Qualità Minima"
+
+def _build_embed_npc(spacciatore: discord.Member, droga_key: str, zona: str, prezzo_grammo: int, grammi: int, npc_nome: str, frase: str) -> discord.Embed:
+    d = DATI_DROGA[droga_key]
+    totale = prezzo_grammo * grammi
+    qualita_str = _calcola_qualita_droga(droga_key, prezzo_grammo)
+    embed = discord.Embed(title="🤝 RICHIESTA D'ACQUISTO — NPC", color=d["colore"])
+    embed.set_author(name=f"Zona: {zona}", icon_url=spacciatore.display_avatar.url)
+    embed.description = (
+        f"*{npc_nome} si avvicina a {spacciatore.mention}...*\n"
+        f"💬 *\"{frase}\"*\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{d['emoji']} **Sostanza** ➢ {d['nome']}\n"
+        f"📍 **Zona** ➢ {zona}\n"
+        f"⚖️ **Quantità richiesta** ➢ **{grammi}g**\n"
+        f"💵 **Prezzo offerto** ➢ **{prezzo_grammo}$/g**\n"
+        f"💰 **Totale** ➢ **{totale:,}$**\n"
+        f"✨ **Qualità** ➢ {qualita_str}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{spacciatore.mention}, accetti questa richiesta?"
+    )
+    embed.set_footer(text="⏳ Hai 5 minuti per rispondere — Prossimo NPC tra 10 minuti")
+    return embed
+
+
+@bot.tree.command(name="spaccia", description="🌿 Avvia sessione spaccio — Scegli droga e zona")
 @_blocca_se_dorme()
 @app_commands.describe(
-    tipo="Tipo di droga",
-    quantita="Quantità in grammi"
+    tipo="Tipo di droga da spacciare",
+    zona="Zona della città dove spacci",
 )
 @app_commands.choices(tipo=[
-    app_commands.Choice(name="🌿 Marijuana", value="marijuana"),
-    app_commands.Choice(name="💮 Cocaina", value="cocaina"),
-    app_commands.Choice(name="❄️ Blue Crystal", value="crystal"),
+    app_commands.Choice(name="🌿 Marijuana  (8–10$/g)", value="marijuana"),
+    app_commands.Choice(name="💮 Cocaina    (80–100$/g)", value="cocaina"),
+    app_commands.Choice(name="❄️ Blue Crystal (300–500$/g)", value="crystal"),
 ])
-async def spaccia(interaction: discord.Interaction, tipo: app_commands.Choice[str], quantita: int):
-    if quantita <= 0:
-        return await interaction.response.send_message("❌ Quantità non valida.", ephemeral=True)
+@app_commands.choices(zona=[
+    app_commands.Choice(name=z, value=z) for z in ZONE_SPACCIO
+])
+async def spaccia(interaction: discord.Interaction, tipo: app_commands.Choice[str], zona: app_commands.Choice[str]):
+    uid = interaction.user.id
+    droga_key = tipo.value
+    d = DATI_DROGA[droga_key]
 
-    NOMI = {
-        "marijuana": "🌿 Marijuana",
-        "cocaina": "💮 Cocaina",
-        "crystal": "❄️ Blue Crystal",
-    }
-    PREZZI_BASE = {
-        "marijuana": 15,
-        "cocaina": 100,
-        "crystal": 100,
-    }
-
-    # Controlla che lo spacciatore abbia la droga nell'inventario
-    inv = inventari.get(interaction.user.id, [])
-    ha_droga = any(
-        ("🌿" in item and tipo.value == "marijuana") or
-        ("💮" in item and tipo.value == "cocaina") or
-        ("❄️" in item and tipo.value == "crystal")
-        for item in inv
-    )
+    inv = inventari.get(uid, [])
+    ha_droga = any(d["emoji"] in item for item in inv)
     if not ha_droga:
         return await interaction.response.send_message(
-            f"❌ Non hai **{NOMI[tipo.value]}** nel tuo inventario.", ephemeral=True
+            f"❌ Non hai **{d['nome']}** nel tuo inventario.", ephemeral=True
         )
 
-    # Purezza casuale 1-100%
-    purezza = random.randint(1, 100)
-    prezzo_grammo = PREZZI_BASE[tipo.value]
-    prezzo_totale = prezzo_grammo * quantita
+    if uid in sessioni_spaccio:
+        old = sessioni_spaccio.pop(uid)
+        task = old.get("task")
+        if task and not task.done():
+            task.cancel()
 
-    # Icona purezza
-    if purezza >= 80:
-        icona_purezza = "🟢"
-    elif purezza >= 50:
-        icona_purezza = "🟡"
-    elif purezza >= 25:
-        icona_purezza = "🟠"
-    else:
-        icona_purezza = "🔴"
+    sessioni_spaccio[uid] = {
+        "droga": droga_key,
+        "zona": zona.value,
+        "channel_id": interaction.channel_id,
+        "task": None,
+    }
 
-    frasi_pusher = [
-        "Roba appena arrivata, non la trovi così in giro.",
-        "Prezzo onesto per quello che è. Affare?",
-        "Non fare il furbo fratè, il prezzo è quello.",
-        "Hai 60 secondi, poi sparisco.",
-        "Roba mia, personale. Puoi fidarti.",
-    ]
-    frase = random.choice(frasi_pusher)
+    embed_start = discord.Embed(title="🏙️ SESSIONE SPACCIO AVVIATA", color=d["colore"])
+    embed_start.set_author(name=interaction.user.display_name, icon_url=interaction.user.display_avatar.url)
+    embed_start.description = (
+        f"✅ Hai iniziato a spacciare in **{zona.value}**\n\n"
+        f"{d['emoji']} **Sostanza** ➢ {d['nome']}\n"
+        f"💵 **Range prezzo** ➢ {d['prezzo_min']}$ – {d['prezzo_max']}$/g\n"
+        f"✨ **{d['qualita_min']}$/g** = qualità minima · **{d['qualita_max']}$/g** = qualità massima\n\n"
+        f"🤖 Gli NPC ti contatteranno ogni **10 minuti** con richieste d'acquisto.\n"
+        f"Usa `/stopspaccia` per terminare la sessione."
+    )
+    embed_start.set_footer(text="Primo NPC in arrivo a breve...")
+    await interaction.response.send_message(embed=embed_start)
 
-    # Modal per l'offerta del cliente
-    class ModalTrattativa(discord.ui.Modal, title="💬 Fai un'offerta"):
-        offerta_input = discord.ui.TextInput(
-            label="La tua offerta (prezzo totale in $)",
-            style=discord.TextStyle.short,
-            placeholder=f"Es: {int(prezzo_totale * 0.8)}",
-            required=True,
-            max_length=10
-        )
+    async def _loop_npc():
+        await asyncio.sleep(10)
+        while uid in sessioni_spaccio:
+            sess = sessioni_spaccio.get(uid)
+            if not sess:
+                break
+            inv_now = inventari.get(uid, [])
+            if not any(d["emoji"] in item for item in inv_now):
+                ch = bot.get_channel(sess["channel_id"])
+                if ch:
+                    e = discord.Embed(color=discord.Color.red())
+                    e.description = (
+                        f"❌ {interaction.user.mention} ha esaurito **{d['nome']}** dall'inventario.\n"
+                        f"Sessione spaccio terminata automaticamente."
+                    )
+                    await ch.send(embed=e)
+                sessioni_spaccio.pop(uid, None)
+                break
 
-        def __init__(self, view_ref):
-            super().__init__()
-            self.view_ref = view_ref
+            npc_nome = random.choice(NPC_NOMI_SPACCIO)
+            frase = random.choice(NPC_FRASI_SPACCIO[droga_key])
+            prezzo_grammo = random.randint(d["prezzo_min"], d["prezzo_max"])
+            grammi = random.randint(1, 10)
+            totale = prezzo_grammo * grammi
 
-        async def on_submit(self, inter: discord.Interaction):
-            try:
-                offerta = int(self.offerta_input.value)
-            except ValueError:
-                return await inter.response.send_message("❌ Inserisci un numero valido.", ephemeral=True)
+            embed_npc = _build_embed_npc(interaction.user, droga_key, sess["zona"], prezzo_grammo, grammi, npc_nome, frase)
+            ch = bot.get_channel(sess["channel_id"])
+            if not ch:
+                break
 
-            if offerta <= 0:
-                return await inter.response.send_message("❌ Offerta non valida.", ephemeral=True)
+            class RispostaNPCView(discord.ui.View):
+                def __init__(self, _uid, _droga_key, _grammi, _prezzo_grammo, _totale, _npc_nome):
+                    super().__init__(timeout=300)
+                    self._uid = _uid
+                    self._droga_key = _droga_key
+                    self._grammi = _grammi
+                    self._prezzo_grammo = _prezzo_grammo
+                    self._totale = _totale
+                    self._npc_nome = _npc_nome
 
-            # Disabilita i bottoni e aggiorna l'embed in attesa della risposta del venditore
-            for child in self.view_ref.children:
-                child.disabled = True
-            await inter.response.edit_message(view=self.view_ref)
-
-            # Notifica al venditore con bottoni accetta/rifiuta offerta
-            class RispostaTrattativaView(discord.ui.View):
-                def __init__(self):
-                    super().__init__(timeout=60)
-
-                @discord.ui.button(label="✅ ACCETTO L'OFFERTA", style=discord.ButtonStyle.green)
-                async def accetta_offerta(self, inter2: discord.Interaction, button2: discord.ui.Button):
-                    if inter2.user.id != interaction.user.id:
-                        return await inter2.response.send_message("❌ Solo lo spacciatore può rispondere.", ephemeral=True)
-
-                    # Controlla inventario venditore
-                    inv_venditore = inventari.get(interaction.user.id, [])
-                    item_trovato = next((i for i in inv_venditore if NOMI[tipo.value].lower() in i.lower()), None)
+                @discord.ui.button(label="✅ ACCETTO", style=discord.ButtonStyle.green, emoji="💰")
+                async def accetta(self, inter: discord.Interaction, button: discord.ui.Button):
+                    if inter.user.id != self._uid:
+                        return await inter.response.send_message("❌ Solo lo spacciatore può rispondere.", ephemeral=True)
+                    _d = DATI_DROGA[self._droga_key]
+                    inv_v = inventari.get(self._uid, [])
+                    item_trovato = next((i for i in inv_v if _d["emoji"] in i), None)
                     if not item_trovato:
                         for c in self.children: c.disabled = True
-                        embed_err = discord.Embed(color=discord.Color.red())
-                        embed_err.description = f"❌ Non hai più **{NOMI[tipo.value]}** nell'inventario. Affare annullato."
-                        return await inter2.response.edit_message(embed=embed_err, view=self)
-
-                    saldo_cliente = portafogli.get(inter.user.id, 0)
-                    if saldo_cliente < offerta:
-                        for c in self.children: c.disabled = True
-                        embed_err = discord.Embed(color=discord.Color.red())
-                        embed_err.description = f"❌ {inter.user.mention} non ha abbastanza soldi per l'offerta di **{offerta}$**. Affare annullato."
-                        return await inter2.response.edit_message(embed=embed_err, view=self)
-
-                    portafogli[inter.user.id] = saldo_cliente - offerta
-                    portafogli[interaction.user.id] = portafogli.get(interaction.user.id, 0) + offerta
-                    inventari[interaction.user.id].remove(item_trovato)
-                    if inter.user.id not in inventari:
-                        inventari[inter.user.id] = []
-                    inventari[inter.user.id].append(f"{NOMI[tipo.value]} x{quantita}g (purezza {purezza}%)")
+                        e = discord.Embed(color=discord.Color.red())
+                        e.description = f"❌ Non hai più **{_d['nome']}** nell'inventario. Affare annullato."
+                        return await inter.response.edit_message(embed=e, view=self)
+                    portafogli[self._uid] = portafogli.get(self._uid, 0) + self._totale
+                    inventari[self._uid].remove(item_trovato)
                     _salva_dati()
-
                     for c in self.children: c.disabled = True
-                    embed_ok = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-                    embed_ok.description = (
-                        f"✅ | **TRATTATIVA CONCLUSA**\n\n"
-                        f"➢ {inter.user.mention} ha acquistato **{quantita}g di {NOMI[tipo.value]}** ({icona_purezza} purezza {purezza}%)\n"
-                        f"➢ Prezzo trattato: **{offerta}$** → {interaction.user.mention}\n\n"
-                        f"*Affare concluso dopo trattativa.*"
+                    qualita_str = _calcola_qualita_droga(self._droga_key, self._prezzo_grammo)
+                    e = discord.Embed(color=discord.Color.green())
+                    e.description = (
+                        f"✅ | **VENDITA COMPLETATA**\n\n"
+                        f"➢ {self._npc_nome} ha acquistato **{self._grammi}g di {_d['nome']}**\n"
+                        f"➢ Qualità ➢ {qualita_str}\n"
+                        f"➢ Incassati **{self._totale:,}$** ({self._prezzo_grammo}$/g)\n\n"
+                        f"*Prossimo NPC tra 10 minuti.*"
                     )
-                    await inter2.response.edit_message(embed=embed_ok, view=self)
+                    await inter.response.edit_message(embed=e, view=self)
 
-                @discord.ui.button(label="❌ RIFIUTO L'OFFERTA", style=discord.ButtonStyle.red)
-                async def rifiuta_offerta(self, inter2: discord.Interaction, button2: discord.ui.Button):
-                    if inter2.user.id != interaction.user.id:
-                        return await inter2.response.send_message("❌ Solo lo spacciatore può rispondere.", ephemeral=True)
+                @discord.ui.button(label="❌ RIFIUTO", style=discord.ButtonStyle.red, emoji="🚫")
+                async def rifiuta(self, inter: discord.Interaction, button: discord.ui.Button):
+                    if inter.user.id != self._uid:
+                        return await inter.response.send_message("❌ Solo lo spacciatore può rispondere.", ephemeral=True)
                     for c in self.children: c.disabled = True
-                    embed_no = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-                    embed_no.description = (
-                        f"❌ | **OFFERTA RIFIUTATA**\n\n"
-                        f"➢ {interaction.user.mention} ha rifiutato l'offerta di **{offerta}$** da {inter.user.mention}.\n"
-                        f"*Il prezzo originale era **{prezzo_totale}$**.*"
+                    e = discord.Embed(color=discord.Color.orange())
+                    e.description = (
+                        f"🚫 | **VENDITA RIFIUTATA**\n\n"
+                        f"➢ Hai rifiutato l'offerta di **{self._npc_nome}**.\n"
+                        f"*Prossimo NPC tra 10 minuti.*"
                     )
-                    await inter2.response.edit_message(embed=embed_no, view=self)
+                    await inter.response.edit_message(embed=e, view=self)
 
-            embed_tratt = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-            embed_tratt.description = (
-                f"💬 | **OFFERTA IN ARRIVO**\n\n"
-                f"➢ {inter.user.mention} offre **{offerta}$** per {quantita}g di {NOMI[tipo.value]}\n"
-                f"➢ Prezzo originale: **{prezzo_totale}$**\n\n"
-                f"{interaction.user.mention}, accetti questa offerta?"
-            )
-            await inter.followup.send(embed=embed_tratt, view=RispostaTrattativaView())
+            view_npc = RispostaNPCView(uid, droga_key, grammi, prezzo_grammo, totale, npc_nome)
+            await ch.send(content=interaction.user.mention, embed=embed_npc, view=view_npc)
+            await asyncio.sleep(600)
 
-    # View principale con 3 bottoni
-    class SpacciaView(discord.ui.View):
-        def __init__(self):
-            super().__init__(timeout=90)
+    task = asyncio.create_task(_loop_npc())
+    sessioni_spaccio[uid]["task"] = task
 
-        @discord.ui.button(label="✅ ACCETTO", style=discord.ButtonStyle.green)
-        async def accetta(self, inter: discord.Interaction, button: discord.ui.Button):
-            if inter.user.id == interaction.user.id:
-                return await inter.response.send_message("❌ Non puoi accettare il tuo stesso affare.", ephemeral=True)
 
-            inv_venditore = inventari.get(interaction.user.id, [])
-            item_trovato = next((i for i in inv_venditore if NOMI[tipo.value].lower() in i.lower()), None)
-            if not item_trovato:
-                for c in self.children: c.disabled = True
-                embed_err = discord.Embed(color=discord.Color.red())
-                embed_err.description = f"❌ {interaction.user.mention} non ha più **{NOMI[tipo.value]}**. Affare annullato."
-                return await inter.response.edit_message(embed=embed_err, view=self)
-
-            saldo = portafogli.get(inter.user.id, 0)
-            if saldo < prezzo_totale:
-                return await inter.response.send_message(
-                    f"❌ Non hai abbastanza soldi. Ti servono **{prezzo_totale}$**.", ephemeral=True
-                )
-
-            portafogli[inter.user.id] = saldo - prezzo_totale
-            portafogli[interaction.user.id] = portafogli.get(interaction.user.id, 0) + prezzo_totale
-            inventari[interaction.user.id].remove(item_trovato)
-            if inter.user.id not in inventari:
-                inventari[inter.user.id] = []
-            inventari[inter.user.id].append(f"{NOMI[tipo.value]} x{quantita}g (purezza {purezza}%)")
-            _salva_dati()
-
-            for c in self.children: c.disabled = True
-            embed_ok = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-            embed_ok.description = (
-                f"✅ | **AFFARE CONCLUSO**\n\n"
-                f"➢ {inter.user.mention} ha acquistato **{quantita}g di {NOMI[tipo.value]}** ({icona_purezza} purezza {purezza}%)\n"
-                f"➢ Pagati **{prezzo_totale}$** a {interaction.user.mention}\n\n"
-                f"*La droga è stata aggiunta all'inventario del cliente.*"
-            )
-            await inter.response.edit_message(embed=embed_ok, view=self)
-
-        @discord.ui.button(label="💬 TRATTA", style=discord.ButtonStyle.blurple)
-        async def tratta(self, inter: discord.Interaction, button: discord.ui.Button):
-            if inter.user.id == interaction.user.id:
-                return await inter.response.send_message("❌ Non puoi trattare con te stesso.", ephemeral=True)
-            await inter.response.send_modal(ModalTrattativa(self))
-
-        @discord.ui.button(label="❌ RIFIUTO", style=discord.ButtonStyle.red)
-        async def rifiuta(self, inter: discord.Interaction, button: discord.ui.Button):
-            if inter.user.id == interaction.user.id:
-                return await inter.response.send_message("❌ Non puoi rifiutare il tuo stesso affare.", ephemeral=True)
-            for c in self.children: c.disabled = True
-            embed_no = discord.Embed(color=discord.Color.red())
-            embed_no.description = (
-                f"❌ | **AFFARE RIFIUTATO**\n\n"
-                f"➢ {inter.user.mention} ha rifiutato l'offerta di {interaction.user.mention}."
-            )
-            await inter.response.edit_message(embed=embed_no, view=self)
-
-    embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-    embed.set_author(name=f"🤝 {interaction.user.display_name} propone un affare", icon_url=interaction.user.display_avatar.url)
+@bot.tree.command(name="stopspaccia", description="🛑 Termina la tua sessione di spaccio attiva")
+async def stopspaccia(interaction: discord.Interaction):
+    uid = interaction.user.id
+    if uid not in sessioni_spaccio:
+        return await interaction.response.send_message("❌ Non hai nessuna sessione di spaccio attiva.", ephemeral=True)
+    sess = sessioni_spaccio.pop(uid)
+    task = sess.get("task")
+    if task and not task.done():
+        task.cancel()
+    embed = discord.Embed(color=discord.Color.red())
     embed.description = (
-        f"*\"{frase}\"*\n\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"🌿 **Sostanza ➢** {NOMI[tipo.value]}\n"
-        f"⚖️ **Quantità ➢** {quantita}g\n"
-        f"{icona_purezza} **Purezza ➢** {purezza}%\n"
-        f"💵 **Prezzo al grammo ➢** {prezzo_grammo}$\n"
-        f"💰 **Totale ➢** {prezzo_totale}$\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"*Puoi accettare, trattare il prezzo o rifiutare.*"
+        f"🛑 | **SESSIONE SPACCIO TERMINATA**\n\n"
+        f"➢ {interaction.user.mention} ha smesso di spacciare in **{sess['zona']}**.\n"
+        f"➢ Droga: {DATI_DROGA[sess['droga']]['nome']}\n\n"
+        f"*Hai lasciato la zona.*"
     )
-    embed.set_footer(text="Hai 90 secondi per decidere.")
-
-    view = SpacciaView()
-    await interaction.response.send_message(embed=embed, view=view)
+    await interaction.response.send_message(embed=embed)
 
 
 @bot.tree.command(name="bdaperto", description="🟩 Apri i bandi della città")
