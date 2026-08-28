@@ -38,7 +38,7 @@ DIRETTORI_LOCALI = {
     "dynasty8":         1495785229795725342,
     "casino":           1497123003396259851,
     "airlines":         1495785234455592960,
-    "isladeoro":        1520768764403253399,
+    "isladeoro":        1532126532011692062,
     "foodless":         1495785221117837373,
     "vanilla":          1495785212796211363,
     "banca":            1494294109031239742,
@@ -80,6 +80,7 @@ CAPO_PER_LAVORO = {
     "fbi": "direttore federale dell'agenzia",
     "mspd": "primo dirigente della polizia",
     "msfd": "direttore msfd",
+    "isla_de_oro": "direttore isla de oro",
     "avvocato": "avvocato capo",
     "giudice": "giudice supremo",
 }
@@ -89,6 +90,19 @@ CAPO_PER_LAVORO = {
 STIPENDI_DUE_GRADI = {
     "dipendente": 2000,
     "direttore": 0,
+}
+
+# ═══════════════════════════════════════════
+# 🍽️ RUOLI ISLA DE ORO
+# ═══════════════════════════════════════════
+RUOLO_DIRETTORE_ISLA_DE_ORO = 1532126532011692062
+RUOLO_DIPENDENTE_ISLA_DE_ORO = 1532126529738244416
+RUOLO_SICUREZZA_ISLA_DE_ORO = 1532126527301488771
+
+RUOLI_ISLA_DE_ORO = {
+    "dipendente": RUOLO_DIPENDENTE_ISLA_DE_ORO,
+    "sicurezza": RUOLO_SICUREZZA_ISLA_DE_ORO,
+    "direttore isla de oro": RUOLO_DIRETTORE_ISLA_DE_ORO,
 }
 
 GRADI_PER_LAVORO = {
@@ -117,6 +131,11 @@ GRADI_PER_LAVORO = {
         ("ispettore", 6500),
         ("vice capo sez. investigativa", 7500),
         ("capo della sezione investigativa", 9000),
+    ],
+    "isla_de_oro": [
+        ("dipendente", 2500),
+        ("sicurezza", 3000),
+        ("direttore isla de oro", 0),
     ],
     "navyseal": [
         ("recluta", 1000),          
@@ -2022,10 +2041,13 @@ async def assumi(interaction: discord.Interaction, utente: discord.Member, lavor
     lavoro_sel = lavoro.lower()
     if not puo_gestire_lavoro(interaction.user, lavoro_sel):
         return await interaction.response.send_message(f"❌ **Accesso negato:** solo lo staff o il capo di `{lavoro_sel.upper()}` può usare questo comando.", ephemeral=True)
-    if lavoro_sel in LAVORI_DUE_GRADI:
+    # Isla De Oro: grado iniziale sempre "dipendente"
+    if lavoro_sel == "isla_de_oro":
+        grado_iniziale = "dipendente"
+    elif lavoro_sel in LAVORI_DUE_GRADI:
         grado_iniziale = "dipendente"
     elif lavoro_sel in GRADI_PER_LAVORO:
-        grado_iniziale = GRADI_PER_LAVORO[lavoro_sel][0][0]  
+        grado_iniziale = GRADI_PER_LAVORO[lavoro_sel][0][0]
     else:
         grado_iniziale = "dipendente"
     stipendio = ottieni_stipendio_grado(lavoro_sel, grado_iniziale)
@@ -2035,7 +2057,18 @@ async def assumi(interaction: discord.Interaction, utente: discord.Member, lavor
     else:
         documenti_identita[utente.id] = {"nome": utente.display_name, "eta": "18", "cognome": "", "nazionalita":"", "sesso":"", "occhi":"", "capelli":"", "lavoro": etichetta_lavoro, "foto_url": LOGO_SERVER}
 
-    embed = discord.Embed(title="🤝 Assunzione Ufficiale", color=discord.Color.from_rgb(255, 107, 53))
+    # Assegna ruolo Discord per Isla De Oro
+    if lavoro_sel == "isla_de_oro":
+        ruolo_id = RUOLI_ISLA_DE_ORO.get(grado_iniziale)
+        if ruolo_id:
+            ruolo_discord = interaction.guild.get_role(ruolo_id)
+            if ruolo_discord:
+                try:
+                    await utente.add_roles(ruolo_discord, reason=f"Assunto in Isla De Oro come {grado_iniziale}")
+                except discord.Forbidden:
+                    pass
+
+    embed = discord.Embed(title="🍽️ Assunzione Ufficiale — Isla De Oro", color=discord.Color.gold()) if lavoro_sel == "isla_de_oro" else discord.Embed(title="🤝 Assunzione Ufficiale", color=discord.Color.from_rgb(255, 107, 53))
     embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
     embed.add_field(name="👤 Lavoratore assunto", value=utente.mention, inline=True)
     embed.add_field(name="💼 Lavoro", value=f"`{lavoro_sel.upper()}`", inline=True)
@@ -2063,7 +2096,25 @@ async def promuovi(interaction: discord.Interaction, utente: discord.Member, lav
     else:
         documenti_identita[utente.id] = {"nome": utente.display_name, "eta": "18", "cognome": "", "nazionalita":"", "sesso":"", "occhi":"", "capelli":"", "lavoro": etichetta_lavoro, "foto_url": LOGO_SERVER}
 
-    embed = discord.Embed(title="🎖️ Promozione / Assegnazione Ufficiale", color=discord.Color.from_rgb(255, 107, 53))
+    # Gestione ruoli Discord per Isla De Oro: rimuovi vecchi, assegna nuovo
+    if lavoro_sel == "isla_de_oro":
+        for rid in RUOLI_ISLA_DE_ORO.values():
+            r = interaction.guild.get_role(rid)
+            if r and r in utente.roles:
+                try:
+                    await utente.remove_roles(r, reason="Cambio grado Isla De Oro")
+                except discord.Forbidden:
+                    pass
+        ruolo_id = RUOLI_ISLA_DE_ORO.get(grado_sel)
+        if ruolo_id:
+            ruolo_discord = interaction.guild.get_role(ruolo_id)
+            if ruolo_discord:
+                try:
+                    await utente.add_roles(ruolo_discord, reason=f"Promosso in Isla De Oro a {grado_sel}")
+                except discord.Forbidden:
+                    pass
+
+    embed = discord.Embed(title="🍽️ Promozione — Isla De Oro", color=discord.Color.gold()) if lavoro_sel == "isla_de_oro" else discord.Embed(title="🎖️ Promozione / Assegnazione Ufficiale", color=discord.Color.from_rgb(255, 107, 53))
     embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
     embed.add_field(name="👤 Membro", value=utente.mention, inline=True)
     embed.add_field(name="💼 Lavoro", value=f"`{lavoro_sel.upper()}`", inline=True)
