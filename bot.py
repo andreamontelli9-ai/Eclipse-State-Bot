@@ -6224,12 +6224,14 @@ async def armeria_vendi(interaction: discord.Interaction, cliente: discord.Membe
     await interaction.response.send_message(embed=embed, view=_make_vendita_select_view(membro, cliente), ephemeral=True)
 
 # ══════════════════════════════════════════════
-# 🚔 ARMADETTO PD — Gestione kit polizia
-# ══════════════════════════════════════════════
 # ══════════════════════════════════════════════
 # 🗃️ ARMADIETTO FDO — Kit per MSPD / FBI
 # ══════════════════════════════════════════════
-# armadietto_fdo = { "nome_kit": {"categoria": str, "contenuto": str, "peso": float, "creato_da": str} }
+# armadietto_fdo = { "nome_kit": {"categoria": str, "contenuto": str, "peso": float, "creato_da": str, "pesa_inventario": bool} }
+
+# Ruolo agente che può usare "Lascia Kit" a fine turno
+RUOLO_AGENTE_LASCIA_KIT = 1532126720990117978
+
 armadietto_fdo: dict = {
     "🚔 Kit Pattuglia Standard": {
         "categoria": "MSPD",
@@ -6254,7 +6256,8 @@ armadietto_fdo: dict = {
             "Glock 43 con caricatore carico (600g)"
         ),
         "peso": 9.475,
-        "creato_da": "Sistema"
+        "creato_da": "Sistema",
+        "pesa_inventario": False,
     }
 }
 
@@ -6264,174 +6267,392 @@ def _kit_per_categoria(cat: str) -> dict:
     return {k: v for k, v in armadietto_fdo.items() if v.get("categoria") == cat}
 
 
+# ─── Modal crea kit (con opzione pesa inventario) ───────────────────────────
 class KitFdoModal(discord.ui.Modal, title="🗃️ Crea Kit Armadietto"):
-    nome_kit   = discord.ui.TextInput(label="Nome del kit", placeholder="Es: Kit Pattuglia Standard", max_length=60)
-    categoria  = discord.ui.TextInput(label="Categoria (MSPD / FBI)", placeholder="MSPD", max_length=10)
-    contenuto1 = discord.ui.TextInput(label="Contenuto — parte 1", style=discord.TextStyle.paragraph, placeholder="Es: Glock 17, Manette, Radio...", max_length=1000)
-    contenuto2 = discord.ui.TextInput(label="Contenuto — parte 2 (opzionale)", style=discord.TextStyle.paragraph, required=False, max_length=1000)
-    peso       = discord.ui.TextInput(label="Peso totale (kg)", placeholder="Es: 4.5", max_length=6)
+    nome_kit        = discord.ui.TextInput(label="Nome del kit", placeholder="Es: Kit Pattuglia Standard", max_length=60)
+    categoria       = discord.ui.TextInput(label="Categoria (MSPD / FBI)", placeholder="MSPD", max_length=10)
+    contenuto1      = discord.ui.TextInput(label="Contenuto — parte 1", style=discord.TextStyle.paragraph, placeholder="Es: Glock 17, Manette, Radio...", max_length=1000)
+    contenuto2      = discord.ui.TextInput(label="Contenuto — parte 2 (opzionale)", style=discord.TextStyle.paragraph, required=False, max_length=1000)
+    peso_e_inv      = discord.ui.TextInput(
+        label="Peso (kg) | Pesa nell'inventario? (si/no)",
+        placeholder="Es:  4.5 | no",
+        max_length=20
+    )
 
     async def on_submit(self, interaction: discord.Interaction):
         cat = self.categoria.value.strip().upper()
         if cat not in CATEGORIE_FDO:
             return await interaction.response.send_message(f"❌ Categoria non valida. Usa: {', '.join(CATEGORIE_FDO)}", ephemeral=True)
+
+        # Parsing campo combinato  "4.5 | no"
+        raw = self.peso_e_inv.value.strip()
+        parti = [x.strip() for x in raw.replace("|", " ").split()]
         try:
-            p = float(self.peso.value.replace(",", "."))
+            p = float(parti[0].replace(",", "."))
             if p <= 0: raise ValueError
-        except ValueError:
-            return await interaction.response.send_message("❌ Peso non valido.", ephemeral=True)
+        except (ValueError, IndexError):
+            return await interaction.response.send_message("❌ Peso non valido. Formato: `4.5 | si` oppure `4.5 | no`", ephemeral=True)
+
+        risposta_inv = parti[1].lower() if len(parti) > 1 else "no"
+        pesa_inv = risposta_inv in ("si", "sì", "yes", "s", "y", "1", "true")
+
         nome = self.nome_kit.value.strip()
         contenuto = self.contenuto1.value.strip()
         if self.contenuto2.value.strip():
             contenuto += "\n" + self.contenuto2.value.strip()
-        armadietto_fdo[nome] = {"categoria": cat, "contenuto": contenuto, "peso": p, "creato_da": interaction.user.display_name}
+
+        armadietto_fdo[nome] = {
+            "categoria": cat,
+            "contenuto": contenuto,
+            "peso": p,
+            "creato_da": interaction.user.display_name,
+            "pesa_inventario": pesa_inv,
+        }
         _salva_dati()
-        embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53), title="✅ Kit creato")
-        embed.add_field(name="📦 Nome", value=nome, inline=True)
-        embed.add_field(name="🏷️ Categoria", value=cat, inline=True)
-        embed.add_field(name="⚖️ Peso", value=f"{p} kg", inline=True)
-        embed.add_field(name="📋 Contenuto", value=contenuto[:1024], inline=False)
+
+        pesa_label = "✅ Sì — pesa nell'inventario" if pesa_inv else "❌ No — non pesa nell'inventario"
+        embed = discord.Embed(
+            title="✅ Kit Creato con Successo",
+            color=discord.Color.from_rgb(30, 144, 255),
+            timestamp=datetime.now()
+        )
+        embed.set_author(name="Eclipse City RP — Armadietto FDO", icon_url=LOGO_SERVER)
+        embed.add_field(name="📦 Nome", value=f"**{nome}**", inline=True)
+        embed.add_field(name="🏷️ Categoria", value=f"`{cat}`", inline=True)
+        embed.add_field(name="⚖️ Peso Kit", value=f"`{p} kg`", inline=True)
+        embed.add_field(name="🎒 Pesa Inventario", value=pesa_label, inline=False)
+        embed.add_field(name="📋 Contenuto", value=f"```\n{contenuto[:900]}\n```", inline=False)
+        embed.set_footer(text=f"Creato da {interaction.user.display_name}")
         await interaction.response.send_message(embed=embed, ephemeral=True)
-        await log_staff(interaction.guild, f"🗃️ {interaction.user.mention} ha creato il kit **{nome}** [{cat}] ({p}kg)", discord.Color.from_rgb(255, 107, 53))
+        await log_staff(
+            interaction.guild,
+            f"🗃️ {interaction.user.mention} ha creato il kit **{nome}** [{cat}] | {p}kg | pesa_inv={pesa_inv}",
+            discord.Color.from_rgb(30, 144, 255)
+        )
 
 
-class ArmadiettoFdoCatView(discord.ui.View):
-    """Scelta categoria — mostra poi la view della categoria."""
-    def __init__(self, uid: int, azione: str):
-        super().__init__(timeout=60)
-        self.uid = uid
-        self.azione = azione  # "lista" | "assegna" | "elimina"
-
-    async def _mostra_cat(self, interaction: discord.Interaction, cat: str):
-        if interaction.user.id != self.uid: return await interaction.response.send_message("❌", ephemeral=True)
-        kit_cat = _kit_per_categoria(cat)
-        if not kit_cat and self.azione != "crea":
-            return await interaction.response.send_message(f"❌ Nessun kit in {cat}.", ephemeral=True)
-        if self.azione == "lista":
-            desc = ""
-            for nome, dati in kit_cat.items():
-                desc += f"**{nome}**\n📋 {dati['contenuto'][:500]}\n⚖️ {dati['peso']} kg | 👤 {dati['creato_da']}\n\n"
-            embed = discord.Embed(title=f"🗃️ Kit {cat}", description=desc[:4000] or "Nessun kit.", color=discord.Color.from_rgb(255, 107, 53))
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-        elif self.azione == "elimina":
-            opzioni = [discord.SelectOption(label=n[:100], value=n) for n in list(kit_cat.keys())[:25]]
-            class ElSel(discord.ui.Select):
-                def __init__(s): super().__init__(placeholder="Scegli kit...", options=opzioni)
-                async def callback(s, inter):
-                    armadietto_fdo.pop(s.values[0], None); _salva_dati()
-                    await inter.response.send_message(f"🗑️ Kit **{s.values[0]}** eliminato.", ephemeral=True)
-            v = discord.ui.View(timeout=60); v.add_item(ElSel())
-            await interaction.response.send_message("Scegli il kit da eliminare:", view=v, ephemeral=True)
-        elif self.azione == "assegna":
-            opzioni = [discord.SelectOption(label=n[:100], value=n) for n in list(kit_cat.keys())[:25]]
-            uid = self.uid
-            class AsSel(discord.ui.Select):
-                def __init__(s): super().__init__(placeholder="Scegli kit...", options=opzioni)
-                async def callback(s, inter):
-                    nome_kit = s.values[0]
-                    class AgenteModal(discord.ui.Modal, title="👤 A chi assegnare il kit?"):
-                        agente_nome = discord.ui.TextInput(label="Nome Discord dell'agente", placeholder="Es: Mario123 o ID", max_length=100)
-                        async def on_submit(sm, inter2):
-                            valore = sm.agente_nome.value.strip()
-                            membro = None
-                            if valore.isdigit():
-                                membro = inter2.guild.get_member(int(valore))
-                                if not membro:
-                                    try: membro = await inter2.guild.fetch_member(int(valore))
-                                    except: pass
-                            if not membro:
-                                vl = valore.lower()
-                                membro = discord.utils.find(lambda m: m.name.lower() == vl or m.display_name.lower() == vl, inter2.guild.members)
-                            if not membro:
-                                return await inter2.response.send_message(f"❌ **{valore}** non trovato.", ephemeral=True)
-                            dati = armadietto_fdo[nome_kit]
-                            item_kit = f"🗃️ {nome_kit}"
-                            if membro.id not in inventari: inventari[membro.id] = []
-                            inventari[membro.id].append(item_kit)
-                            PESI_OGGETTI[item_kit] = 0.0
-                            _salva_dati()
-                            embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53), title="📤 Kit Assegnato")
-                            embed.add_field(name="👤 Agente", value=membro.mention, inline=True)
-                            embed.add_field(name="🏷️ Categoria", value=dati["categoria"], inline=True)
-                            embed.add_field(name="📦 Kit", value=nome_kit, inline=False)
-                            embed.add_field(name="📋 Contenuto", value=dati["contenuto"][:1024], inline=False)
-                            embed.add_field(name="⚖️ Peso dotazione", value=f"{dati['peso']} kg (non pesa nell'inventario)", inline=False)
-                            await inter2.response.send_message(embed=embed)
-                            await log_staff(inter2.guild, f"📤 {inter2.user.mention} → kit **{nome_kit}** [{dati['categoria']}] a {membro.mention}", discord.Color.from_rgb(255, 107, 53))
-                    await inter.response.send_modal(AgenteModal())
-            v = discord.ui.View(timeout=60); v.add_item(AsSel())
-            await interaction.response.send_message("Scegli il kit:", view=v, ephemeral=True)
-
-    @discord.ui.button(label="🚔 MSPD", style=discord.ButtonStyle.primary)
-    async def cat_mspd(self, inter, btn): await self._mostra_cat(inter, "MSPD")
-
-    @discord.ui.button(label="🕵️ FBI", style=discord.ButtonStyle.danger)
-    async def cat_fbi(self, inter, btn): await self._mostra_cat(inter, "FBI")
+# ─── Helpers interni ─────────────────────────────────────────────────────────
+async def _risolvi_membro(guild: discord.Guild, valore: str):
+    """Risolve un nome/ID Discord → oggetto Member."""
+    membro = None
+    if valore.isdigit():
+        membro = guild.get_member(int(valore))
+        if not membro:
+            try: membro = await guild.fetch_member(int(valore))
+            except: pass
+    if not membro:
+        vl = valore.lower()
+        membro = discord.utils.find(lambda m: m.name.lower() == vl or m.display_name.lower() == vl, guild.members)
+    return membro
 
 
-class ArmadiettoFdoView(discord.ui.View):
-    def __init__(self, uid: int):
-        super().__init__(timeout=120)
-        self.uid = uid
-
-    @discord.ui.button(label="➕ Crea Kit", style=discord.ButtonStyle.primary)
-    async def crea_kit(self, inter, btn):
-        if inter.user.id != self.uid: return await inter.response.send_message("❌", ephemeral=True)
-        await inter.response.send_modal(KitFdoModal())
-
-    @discord.ui.button(label="📋 Lista Kit", style=discord.ButtonStyle.secondary)
-    async def lista_kit(self, inter, btn):
-        if inter.user.id != self.uid: return await inter.response.send_message("❌", ephemeral=True)
-        await inter.response.send_message("Scegli la categoria:", view=ArmadiettoFdoCatView(self.uid, "lista"), ephemeral=True)
-
-    @discord.ui.button(label="🗑️ Elimina Kit", style=discord.ButtonStyle.danger)
-    async def elimina_kit(self, inter, btn):
-        if inter.user.id != self.uid: return await inter.response.send_message("❌", ephemeral=True)
-        await inter.response.send_message("Scegli la categoria:", view=ArmadiettoFdoCatView(self.uid, "elimina"), ephemeral=True)
-
-    @discord.ui.button(label="📤 Assegna Kit", style=discord.ButtonStyle.success, row=1)
-    async def assegna_kit(self, inter, btn):
-        if inter.user.id != self.uid: return await inter.response.send_message("❌", ephemeral=True)
-        await inter.response.send_message("Scegli la categoria:", view=ArmadiettoFdoCatView(self.uid, "assegna"), ephemeral=True)
-
-    @discord.ui.button(label="🗑️ Togli Kit", style=discord.ButtonStyle.danger, row=1)
-    async def togli_kit(self, inter, btn):
-        if inter.user.id != self.uid: return await inter.response.send_message("❌", ephemeral=True)
-        uid = self.uid
-        kit_in_inv = [item for item in inventari.get(inter.user.id, []) if item.startswith("🗃️")]
-        if not kit_in_inv:
-            return await inter.response.send_message("❌ Non hai kit nell'inventario.", ephemeral=True)
-        opzioni = [discord.SelectOption(label=n[:100], value=n) for n in kit_in_inv[:25]]
-        class TogliSel(discord.ui.Select):
-            def __init__(s): super().__init__(placeholder="Scegli kit da riconsegnare...", options=opzioni)
-            async def callback(s, inter2):
-                if inter2.user.id != uid: return await inter2.response.send_message("❌", ephemeral=True)
-                item_kit = s.values[0]
-                if item_kit in inventari.get(inter2.user.id, []):
-                    inventari[inter2.user.id].remove(item_kit)
-                _salva_dati()
-                nome = item_kit.replace("🗃️ ", "")
-                await inter2.response.send_message(f"✅ Kit **{nome}** riconsegnato.", ephemeral=True)
-                await log_staff(inter2.guild, f"🗑️ {inter2.user.mention} ha riconsegnato il kit **{nome}**.", discord.Color.from_rgb(255, 107, 53))
-        v = discord.ui.View(timeout=60); v.add_item(TogliSel())
-        await inter.response.send_message("Scegli il kit:", view=v, ephemeral=True)
+def _assegna_kit_a_membro(membro: discord.Member, nome_kit: str):
+    """Inserisce il kit nell'inventario del membro e aggiorna PESI_OGGETTI."""
+    dati = armadietto_fdo[nome_kit]
+    item_kit = f"🗃️ {nome_kit}"
+    if membro.id not in inventari:
+        inventari[membro.id] = []
+    inventari[membro.id].append(item_kit)
+    peso_assegnato = dati["peso"] if dati.get("pesa_inventario", False) else 0.0
+    PESI_OGGETTI[item_kit] = peso_assegnato
+    _salva_dati()
+    return item_kit, peso_assegnato
 
 
-@bot.tree.command(name="armadietto-fdo", description="🗃️ Armadietto Forze dell'Ordine — kit MSPD e FBI")
-@has_police_permission()
-async def armadietto_fdo_cmd(interaction: discord.Interaction):
-    tot = len(armadietto_fdo)
+def _build_embed_armadietto() -> discord.Embed:
+    """Costruisce l'embed principale dell'armadietto (usato anche dal menu persistente)."""
+    tot  = len(armadietto_fdo)
     mspd = len(_kit_per_categoria("MSPD"))
     fbi  = len(_kit_per_categoria("FBI"))
-    embed = discord.Embed(title="🗃️ ARMADIETTO FDO", color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
-    embed.set_author(name="Eclipse City RP — Forze dell'Ordine", icon_url=LOGO_SERVER)
-    embed.description = (
-        f"**Kit totali:** {tot}\n"
-        f"🚔 MSPD: {mspd} kit\n"
-        f"🕵️ FBI: {fbi} kit\n\n"
-        "Usa i bottoni per gestire i kit dotazione."
+
+    embed = discord.Embed(
+        title="🗄️  ARMADIETTO — FORZE DELL'ORDINE",
+        color=discord.Color.from_rgb(30, 144, 255),
+        timestamp=datetime.now()
     )
-    await interaction.response.send_message(embed=embed, view=ArmadiettoFdoView(interaction.user.id), ephemeral=True)
+    embed.set_author(name="Eclipse City RP — Reparto FDO", icon_url=LOGO_SERVER)
+    embed.set_thumbnail(url=LOGO_SERVER)
+
+    # Barra visiva kit
+    barra_mspd = "🟦" * min(mspd, 10) + "⬛" * max(0, 10 - min(mspd, 10))
+    barra_fbi  = "🟥" * min(fbi,  10) + "⬛" * max(0, 10 - min(fbi,  10))
+
+    embed.add_field(
+        name="📊 Statistiche Armadietto",
+        value=(
+            f"```\n"
+            f"  Kit Totali : {tot:>3}\n"
+            f"  MSPD       : {mspd:>3}\n"
+            f"  FBI        : {fbi:>3}\n"
+            f"```"
+        ),
+        inline=False
+    )
+    embed.add_field(name="🚔 MSPD", value=barra_mspd, inline=True)
+    embed.add_field(name="🕵️ FBI",  value=barra_fbi,  inline=True)
+    embed.add_field(name="\u200b", value="\u200b", inline=True)
+
+    embed.add_field(
+        name="📋 Azioni disponibili",
+        value=(
+            "```\n"
+            "  ➕  Crea Kit         — Crea un nuovo kit dotazione\n"
+            "  📋  Lista Kit        — Visualizza kit per categoria\n"
+            "  📤  Assegna Kit      — Assegna kit a un agente\n"
+            "  🗑️  Elimina Kit      — Rimuovi un kit dall'armadietto\n"
+            "  🔄  Lascia Kit       — Riconsegna kit a fine turno\n"
+            "```"
+        ),
+        inline=False
+    )
+    embed.set_footer(text="Eclipse City RP — Solo uso interno FDO | Aggiornato")
+    return embed
+
+
+# ─── View PERSISTENTE (menu permanente nel canale) ────────────────────────────
+class ArmadiettoFdoPersistentView(discord.ui.View):
+    """
+    View con timeout=None e custom_id fissi → sopravvive ai riavvii del bot.
+    Chiunque abbia il permesso FDO può cliccare, indipendentemente da chi ha
+    eseguito il comando.
+    """
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    # ── controlli accesso ──────────────────────────────────────────────────
+    def _is_fdo(self, inter: discord.Interaction) -> bool:
+        m = inter.user
+        if m.guild_permissions.administrator or m.guild_permissions.manage_messages:
+            return True
+        if _ha_ruolo_id(m, RUOLO_POLIZIA_ID):
+            return True
+        if _ha_ruolo(m, _KW_STAFF + _KW_POLIZIA):
+            return True
+        return False
+
+    def _is_agente_lascia(self, inter: discord.Interaction) -> bool:
+        """Può lasciare kit: agenti FDO normali o chi ha il ruolo specifico."""
+        m = inter.user
+        if self._is_fdo(inter):
+            return True
+        if any(r.id == RUOLO_AGENTE_LASCIA_KIT for r in m.roles):
+            return True
+        return False
+
+    # ── helper: invia categoria per lista ─────────────────────────────────
+    async def _lista_cat(self, inter: discord.Interaction, cat: str):
+        kit_cat = _kit_per_categoria(cat)
+        if not kit_cat:
+            return await inter.response.send_message(f"❌ Nessun kit disponibile per **{cat}**.", ephemeral=True)
+        lines = []
+        for nome, dati in kit_cat.items():
+            pesa_label = "⚖️ Pesa" if dati.get("pesa_inventario") else "🪶 Non pesa"
+            lines.append(
+                f"**{nome}**\n"
+                f"└ {pesa_label} | `{dati['peso']} kg` | 👤 {dati['creato_da']}\n"
+                f"└ {dati['contenuto'][:300]}{'…' if len(dati['contenuto']) > 300 else ''}\n"
+            )
+        embed = discord.Embed(
+            title=f"🗃️ Kit {cat} — Lista Completa",
+            description="\n".join(lines)[:4000] or "Nessun kit.",
+            color=discord.Color.from_rgb(30, 144, 255)
+        )
+        embed.set_footer(text=f"Eclipse City RP — {cat}")
+        await inter.response.send_message(embed=embed, ephemeral=True)
+
+    # ══ BOTTONE: Crea Kit ══════════════════════════════════════════════════
+    @discord.ui.button(
+        label="➕ Crea Kit",
+        style=discord.ButtonStyle.primary,
+        custom_id="armadietto_crea_kit",
+        emoji="🗃️",
+        row=0
+    )
+    async def crea_kit(self, inter: discord.Interaction, btn: discord.ui.Button):
+        if not self._is_fdo(inter):
+            return await inter.response.send_message("❌ Accesso negato.", ephemeral=True)
+        await inter.response.send_modal(KitFdoModal())
+
+    # ══ BOTTONE: Lista Kit ════════════════════════════════════════════════
+    @discord.ui.button(
+        label="📋 Lista Kit",
+        style=discord.ButtonStyle.secondary,
+        custom_id="armadietto_lista_kit",
+        emoji="📄",
+        row=0
+    )
+    async def lista_kit(self, inter: discord.Interaction, btn: discord.ui.Button):
+        if not self._is_agente_lascia(inter):
+            return await inter.response.send_message("❌ Accesso negato.", ephemeral=True)
+        # Mostra sub-view per scegliere categoria
+        class CatListaView(discord.ui.View):
+            def __init__(sv): super().__init__(timeout=30)
+            @discord.ui.button(label="🚔 MSPD", style=discord.ButtonStyle.primary)
+            async def mspd(sv, i, b): await self._lista_cat(i, "MSPD")
+            @discord.ui.button(label="🕵️ FBI", style=discord.ButtonStyle.danger)
+            async def fbi(sv, i, b): await self._lista_cat(i, "FBI")
+        await inter.response.send_message("Scegli la categoria:", view=CatListaView(), ephemeral=True)
+
+    # ══ BOTTONE: Assegna Kit ══════════════════════════════════════════════
+    @discord.ui.button(
+        label="📤 Assegna Kit",
+        style=discord.ButtonStyle.success,
+        custom_id="armadietto_assegna_kit",
+        emoji="🎖️",
+        row=1
+    )
+    async def assegna_kit(self, inter: discord.Interaction, btn: discord.ui.Button):
+        if not self._is_fdo(inter):
+            return await inter.response.send_message("❌ Accesso negato.", ephemeral=True)
+
+        class CatAssView(discord.ui.View):
+            def __init__(sv): super().__init__(timeout=30)
+
+            async def _scegli_kit(sv, i: discord.Interaction, cat: str):
+                kit_cat = _kit_per_categoria(cat)
+                if not kit_cat:
+                    return await i.response.send_message(f"❌ Nessun kit in {cat}.", ephemeral=True)
+                opzioni = [discord.SelectOption(label=n[:100], value=n) for n in list(kit_cat.keys())[:25]]
+
+                class KitSel(discord.ui.Select):
+                    def __init__(ss): super().__init__(placeholder="Scegli kit…", options=opzioni)
+                    async def callback(ss, i2: discord.Interaction):
+                        nome_kit = ss.values[0]
+                        class AgenteModal(discord.ui.Modal, title="👤 Assegna a chi?"):
+                            agente_nome = discord.ui.TextInput(label="Nome Discord o ID dell'agente", placeholder="Es: Mario123 o 123456789", max_length=100)
+                            async def on_submit(sm, i3: discord.Interaction):
+                                membro = await _risolvi_membro(i3.guild, sm.agente_nome.value.strip())
+                                if not membro:
+                                    return await i3.response.send_message(f"❌ Agente **{sm.agente_nome.value}** non trovato.", ephemeral=True)
+                                item_kit, peso_assegnato = _assegna_kit_a_membro(membro, nome_kit)
+                                dati = armadietto_fdo[nome_kit]
+                                pesa_label = f"⚖️ {peso_assegnato} kg (pesa nell'inventario)" if dati.get("pesa_inventario") else "🪶 Non pesa nell'inventario"
+                                embed = discord.Embed(
+                                    title="📤 Kit Assegnato",
+                                    color=discord.Color.from_rgb(30, 144, 255),
+                                    timestamp=datetime.now()
+                                )
+                                embed.set_author(name="Eclipse City RP — Armadietto FDO", icon_url=LOGO_SERVER)
+                                embed.add_field(name="👤 Agente", value=membro.mention, inline=True)
+                                embed.add_field(name="🏷️ Categoria", value=f"`{dati['categoria']}`", inline=True)
+                                embed.add_field(name="📦 Kit", value=f"**{nome_kit}**", inline=False)
+                                embed.add_field(name="📋 Contenuto", value=f"```\n{dati['contenuto'][:800]}\n```", inline=False)
+                                embed.add_field(name="🎒 Peso", value=pesa_label, inline=False)
+                                embed.set_footer(text=f"Assegnato da {i3.user.display_name}")
+                                await i3.response.send_message(embed=embed)
+                                await log_staff(i3.guild, f"📤 {i3.user.mention} → kit **{nome_kit}** [{dati['categoria']}] a {membro.mention}", discord.Color.from_rgb(30, 144, 255))
+                        await i2.response.send_modal(AgenteModal())
+
+                v = discord.ui.View(timeout=60)
+                v.add_item(KitSel())
+                await i.response.send_message("Scegli il kit:", view=v, ephemeral=True)
+
+            @discord.ui.button(label="🚔 MSPD", style=discord.ButtonStyle.primary)
+            async def mspd(sv, i, b): await sv._scegli_kit(i, "MSPD")
+            @discord.ui.button(label="🕵️ FBI", style=discord.ButtonStyle.danger)
+            async def fbi(sv, i, b): await sv._scegli_kit(i, "FBI")
+
+        await inter.response.send_message("Scegli la categoria:", view=CatAssView(), ephemeral=True)
+
+    # ══ BOTTONE: Elimina Kit ══════════════════════════════════════════════
+    @discord.ui.button(
+        label="🗑️ Elimina Kit",
+        style=discord.ButtonStyle.danger,
+        custom_id="armadietto_elimina_kit",
+        emoji="❌",
+        row=1
+    )
+    async def elimina_kit(self, inter: discord.Interaction, btn: discord.ui.Button):
+        if not self._is_fdo(inter):
+            return await inter.response.send_message("❌ Accesso negato.", ephemeral=True)
+
+        class CatElView(discord.ui.View):
+            def __init__(sv): super().__init__(timeout=30)
+            async def _scegli(sv, i: discord.Interaction, cat: str):
+                kit_cat = _kit_per_categoria(cat)
+                if not kit_cat:
+                    return await i.response.send_message(f"❌ Nessun kit in {cat}.", ephemeral=True)
+                opzioni = [discord.SelectOption(label=n[:100], value=n) for n in list(kit_cat.keys())[:25]]
+                class ElSel(discord.ui.Select):
+                    def __init__(ss): super().__init__(placeholder="Scegli kit da eliminare…", options=opzioni)
+                    async def callback(ss, i2: discord.Interaction):
+                        nome = ss.values[0]
+                        armadietto_fdo.pop(nome, None)
+                        _salva_dati()
+                        await i2.response.send_message(f"🗑️ Kit **{nome}** eliminato dall'armadietto.", ephemeral=True)
+                        await log_staff(i2.guild, f"🗑️ {i2.user.mention} ha eliminato il kit **{nome}** [{cat}]", discord.Color.red())
+                v = discord.ui.View(timeout=60)
+                v.add_item(ElSel())
+                await i.response.send_message("Scegli il kit da eliminare:", view=v, ephemeral=True)
+            @discord.ui.button(label="🚔 MSPD", style=discord.ButtonStyle.primary)
+            async def mspd(sv, i, b): await sv._scegli(i, "MSPD")
+            @discord.ui.button(label="🕵️ FBI", style=discord.ButtonStyle.danger)
+            async def fbi(sv, i, b): await sv._scegli(i, "FBI")
+
+        await inter.response.send_message("Scegli la categoria:", view=CatElView(), ephemeral=True)
+
+    # ══ BOTTONE: Lascia Kit (fine turno) ══════════════════════════════════
+    @discord.ui.button(
+        label="🔄 Lascia Kit",
+        style=discord.ButtonStyle.secondary,
+        custom_id="armadietto_lascia_kit",
+        emoji="🔄",
+        row=2
+    )
+    async def lascia_kit(self, inter: discord.Interaction, btn: discord.ui.Button):
+        # Accessibile a: FDO, staff, oppure chi ha il ruolo RUOLO_AGENTE_LASCIA_KIT
+        if not self._is_agente_lascia(inter):
+            return await inter.response.send_message("❌ Non hai il permesso di riconsegnare kit.", ephemeral=True)
+
+        uid = inter.user.id
+        kit_in_inv = [item for item in inventari.get(uid, []) if item.startswith("🗃️")]
+        if not kit_in_inv:
+            return await inter.response.send_message("❌ Non hai nessun kit attivo nel tuo inventario.", ephemeral=True)
+
+        opzioni = [discord.SelectOption(label=n.replace("🗃️ ", "")[:100], value=n) for n in kit_in_inv[:25]]
+
+        class LasciaKitSel(discord.ui.Select):
+            def __init__(s): super().__init__(placeholder="Scegli kit da riconsegnare…", options=opzioni)
+            async def callback(s, i2: discord.Interaction):
+                if i2.user.id != uid:
+                    return await i2.response.send_message("❌ Non è il tuo kit.", ephemeral=True)
+                item_kit = s.values[0]
+                if item_kit in inventari.get(i2.user.id, []):
+                    inventari[i2.user.id].remove(item_kit)
+                PESI_OGGETTI.pop(item_kit, None)
+                _salva_dati()
+                nome = item_kit.replace("🗃️ ", "")
+                embed = discord.Embed(
+                    title="✅ Kit Riconsegnato",
+                    description=f"Hai riconsegnato il kit **{nome}** a fine turno.",
+                    color=discord.Color.green(),
+                    timestamp=datetime.now()
+                )
+                embed.set_footer(text="Eclipse City RP — Buon riposo, agente!")
+                await i2.response.send_message(embed=embed, ephemeral=True)
+                await log_staff(i2.guild, f"🔄 {i2.user.mention} ha riconsegnato il kit **{nome}** (fine turno).", discord.Color.green())
+
+        v = discord.ui.View(timeout=60)
+        v.add_item(LasciaKitSel())
+        await inter.response.send_message("🔄 Seleziona il kit da riconsegnare:", view=v, ephemeral=True)
+
+
+# ─── Registra la view persistente all'avvio ───────────────────────────────────
+@bot.event
+async def on_ready_armadietto():
+    """Registra la persistent view dell'armadietto al ready. Viene chiamata da on_ready."""
+    bot.add_view(ArmadiettoFdoPersistentView())
+
+
+# ─── Comando /armadietto-fdo — pubblica il menu nel canale ───────────────────
+@bot.tree.command(name="armadietto-fdo", description="🗃️ Pubblica il menu Armadietto FDO nel canale (rimane attivo)")
+@has_police_permission()
+async def armadietto_fdo_cmd(interaction: discord.Interaction):
+    embed = _build_embed_armadietto()
+    view  = ArmadiettoFdoPersistentView()
+    # Pubblica nel canale (non ephemeral) → il menu resta e funziona per tutti
+    await interaction.response.send_message(embed=embed, view=view)
+    await interaction.followup.send("✅ Menu armadietto pubblicato nel canale. I bottoni resteranno attivi anche dopo il riavvio.", ephemeral=True)
 
 
 # ══════════════════════════════════════════════
