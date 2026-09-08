@@ -1055,19 +1055,59 @@ class ViewBilancio(discord.ui.View):
 # 0. 🏁 SONDAGGI E PANNELLI INTERATTIVI
 # ==========================================
 
+class ModalOrarioSondaggio(discord.ui.Modal, title="🕐 Imposta Orario Sessione RP"):
+    orario = discord.ui.TextInput(
+        label="Orario della sessione",
+        placeholder="Es: 18:30 oppure 20:00",
+        required=True,
+        max_length=10
+    )
+
+    async def on_submit(self, interaction: discord.Interaction):
+        orario_str = self.orario.value.strip()
+
+        # Validazione base del formato orario
+        import re
+        if not re.match(r"^\d{1,2}:\d{2}$", orario_str):
+            return await interaction.response.send_message(
+                "❌ Formato orario non valido. Usa il formato **HH:MM** (es: 15:00 o 8:30).",
+                ephemeral=True
+            )
+
+        await interaction.response.send_message(
+            f"⌛ Genero il sondaggio per le ore {orario_str}...", ephemeral=True
+        )
+
+        embed = discord.Embed(
+            title="📊 | Sondaggio Rp",
+            description=(
+                f"🚀 **Orario Sessione RP Selezionato: {orario_str}**\n\n"
+                f"Pronti a iniziare una nuova avventura roleplay.\n"
+                f"➢ *Votate per partecipare alla sessione delle {orario_str} grazie!*"
+            ),
+            color=discord.Color.from_rgb(255, 107, 53),
+            timestamp=datetime.now()
+        )
+        embed.set_thumbnail(url=LOGO_SERVER)
+        embed.set_footer(
+            text=f"Sondaggio avviato da: {interaction.user.display_name}",
+            icon_url=interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url
+        )
+
+        message = await interaction.channel.send("@everyone", embed=embed)
+        await message.add_reaction("✅")
+        await message.add_reaction("❌")
+        await message.add_reaction("🕒")
+
+        await interaction.delete_original_response()
+
+
 class ViewSondaggioPulsanti(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=None) 
+        super().__init__(timeout=None)
 
-    @discord.ui.button(label="Sessione 15:00", style=discord.ButtonStyle.success, custom_id="btn_1500")
-    async def btn_1500(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.genera_risultato_sondaggio(interaction, "15:00")
-
-    @discord.ui.button(label="Sessione 21:00", style=discord.ButtonStyle.primary, custom_id="btn_2100")
-    async def btn_2100(self, interaction: discord.Interaction, button: discord.ui.Button):
-        await self.genera_risultato_sondaggio(interaction, "21:00")
-
-    async def genera_risultato_sondaggio(self, interaction: discord.Interaction, orario: str):
+    @discord.ui.button(label="🕐 Avvia Sondaggio RP", style=discord.ButtonStyle.success, custom_id="btn_avvia_sondaggio")
+    async def btn_avvia_sondaggio(self, interaction: discord.Interaction, button: discord.ui.Button):
         membro = await _get_member(interaction)
         is_staff = (
             membro.guild_permissions.administrator
@@ -1075,28 +1115,10 @@ class ViewSondaggioPulsanti(discord.ui.View):
             or _ha_ruolo(membro, _KW_STAFF)
         )
         if not is_staff:
-            return await interaction.response.send_message("❌ **Accesso negato:** Comando riservato allo Staff.", ephemeral=True)
-
-        await interaction.response.send_message(f"⌛ Genero il sondaggio per le ore {orario}...", ephemeral=True)
-
-        embed = discord.Embed(
-            title="📊 | Sondaggio Rp", 
-            description=f"🚀 **Orario Sessione RP Selezionato: {orario}**\n\nPronti a iniziare una nuova avventura roleplay.\n➢ *Votate per partecipare alla sessione delle {orario} grazie!*", 
-            color=discord.Color.from_rgb(255, 107, 53),
-            timestamp=datetime.now()
-        )
-        embed.set_thumbnail(url=LOGO_SERVER)
-        embed.set_footer(
-            text=f"Sondaggio avviato da: {interaction.user.display_name}", 
-            icon_url=interaction.user.avatar.url if interaction.user.avatar else interaction.user.default_avatar.url
-        )
-
-        message = await interaction.channel.send("@everyone", embed=embed)
-        await message.add_reaction("✅") 
-        await message.add_reaction("❌") 
-        await message.add_reaction("🕒") 
-
-        await interaction.delete_original_response()
+            return await interaction.response.send_message(
+                "❌ **Accesso negato:** Comando riservato allo Staff.", ephemeral=True
+            )
+        await interaction.response.send_modal(ModalOrarioSondaggio())
 
 # --- Modulo e Tasto per Inviare il Background ---
 CH_ESITI_BACKGROUND  = 1532127242048503868  # log background
@@ -1427,8 +1449,8 @@ async def on_member_remove(member: discord.Member):
 async def crea_sondaggio(interaction: discord.Interaction):
     view = ViewSondaggioPulsanti()
     await interaction.response.send_message(
-        "**Pannello di Controllo Sondaggi:**\nSeleziona l'orario della sessione RP cliccando uno dei pulsanti sottostanti.", 
-        view=view, 
+        "**Pannello di Controllo Sondaggi:**\nClicca il pulsante qui sotto per impostare l'orario della sessione RP e avviare il sondaggio.",
+        view=view,
         ephemeral=True
     )
 
