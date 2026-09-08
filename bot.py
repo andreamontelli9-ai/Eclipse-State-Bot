@@ -7661,9 +7661,9 @@ async def pagamento_rate_task():
 # 🏝️ ISLA DE ORO — Sistema Ordini Ristorante
 # ══════════════════════════════════════════════════════════════════
 
-ISLA_CANALE_ORDINI_ID = 1530635315268817126
-ISLA_RUOLO_CAMERIERE  = 1520768829838327899
-ISLA_CASSA_UID        = 1510391381867233351
+ISLA_CANALE_ORDINI_ID = 1532128326205051050
+ISLA_RUOLO_CAMERIERE  = 1532126534284869715
+ISLA_CASSA_UID        = 1532128326205051050
 
 ISLA_MENU = {
     "🦐 Carpaccio de Carabinero Real":        {"prezzo": 650,   "cat": "🌊 Menú de Mar — Antipasti"},
