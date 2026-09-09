@@ -884,7 +884,7 @@ def is_dev_or_owner():
     return app_commands.check(predicate)
 
 # ID ruolo polizia specifico (ha accesso a tutti i comandi polizia)
-RUOLO_POLIZIA_ID = 1494294119663796347
+RUOLO_POLIZIA_ID = 1532126720990117978
 
 def _ha_ruolo_id(member: discord.Member, role_id: int) -> bool:
     """Controlla se un membro ha un ruolo tramite ID."""
