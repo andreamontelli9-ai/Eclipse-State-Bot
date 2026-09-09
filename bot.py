@@ -15,143 +15,6 @@ try:
 except ImportError:
     PIL_AVAILABLE = False
 
-import base64 as _b64
-import random as _rnd
-
-# ═══════════════════════════════════════════
-# 🪪 GENERATORE PATENTE HTML — ECLIPSE CITY
-# ═══════════════════════════════════════════
-def _carica_bg_patente() -> str:
-    """Carica lo sfondo della patente dal file locale come data URI base64."""
-    bg_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "patente_bg.png")
-    if os.path.exists(bg_path):
-        with open(bg_path, "rb") as f:
-            return f"data:image/png;base64,{_b64.b64encode(f.read()).decode()}"
-    return ""
-
-_PATENTE_BG_URI: str = _carica_bg_patente()
-
-def genera_patente_html(
-    nome: str,
-    cognome: str,
-    sesso: str,
-    eta: str,
-    nazionalita: str,
-    capelli: str,
-    occhi: str,
-    foto_url: str,
-    numero_dl: str,
-    scadenza: str,
-    classe: str,
-    indirizzo: str,
-    targa: str,
-) -> bytes:
-    """Genera la patente Eclipse City come HTML con sfondo reale e dati del personaggio."""
-    bg_css = (
-        f"background-image:url('{_PATENTE_BG_URI}');background-size:cover;background-position:center;"
-        if _PATENTE_BG_URI
-        else "background-color:#e8dfc0;"
-    )
-    foto_tag = (
-        f"<img src='{foto_url}' alt='foto' style='width:100%;height:100%;object-fit:cover'/>"
-        if foto_url
-        else "<div style='display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;font-size:10px;color:#5a4a3a;font-weight:700;letter-spacing:1px'>👤<br>PHOTO</div>"
-    )
-
-    html = f"""<!DOCTYPE html>
-<html lang="it">
-<head>
-<meta charset="UTF-8">
-<style>
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{background:#1a1a2e;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:Arial,Helvetica,sans-serif}}
-.card{{width:760px;height:470px;border-radius:16px;border:2px solid #7a6040;overflow:hidden;position:relative;box-shadow:4px 8px 28px rgba(0,0,0,.7);{bg_css}}}
-.hdr{{position:absolute;top:0;left:0;right:0;height:62px;background:rgba(248,244,236,.97);border-bottom:7px solid #2e7d32;display:flex;align-items:center;padding:0 18px;box-shadow:0 2px 6px rgba(0,0,0,.18);z-index:10}}
-.hdr-title{{font-size:27px;font-weight:900;color:#1a3a7a;letter-spacing:.5px;line-height:1}}
-.hdr-title sup{{font-size:11px;font-weight:700;margin-left:3px}}
-.hdr-sep{{width:3px;height:40px;background:#2e7d32;margin:0 14px;flex-shrink:0}}
-.hdr-dl{{font-size:20px;font-weight:800;color:#1a3a7a;letter-spacing:1px}}
-.hdr-fed{{margin-left:auto;text-align:right;font-size:9px;font-weight:700;color:#1a3a7a;line-height:1.5}}
-.photo{{position:absolute;top:80px;left:20px;width:148px;height:195px;border:1.5px solid #8a7a6a;border-radius:4px;overflow:hidden;z-index:10;background:#c0b8a8}}
-.classe{{position:absolute;top:82px;right:18px;font-size:15px;font-weight:800;color:#1a3a7a;z-index:10;letter-spacing:1px}}
-.dati{{position:absolute;top:82px;left:184px;right:18px;z-index:10}}
-.f{{display:flex;align-items:baseline;margin-bottom:7px;border-bottom:.6px solid #c0a878;padding-bottom:4px}}
-.fl{{font-size:11px;font-weight:700;color:#1a3a7a;min-width:42px;letter-spacing:.8px}}
-.fv{{font-size:14px;font-weight:700;color:#111;margin-left:5px}}
-.fv.red{{color:#cc1a1a}}
-.frow{{display:flex;gap:22px;margin-bottom:7px;border-bottom:.6px solid #c0a878;padding-bottom:4px}}
-.frow .f{{border:none;margin:0;padding:0}}
-.footer{{position:absolute;bottom:0;left:0;right:0;height:110px;background:rgba(237,228,208,.94);border-top:1px solid #a09070;display:flex;align-items:flex-start;padding:10px 18px 8px;z-index:10}}
-.firma-block{{flex:1}}
-.firma-text{{font-family:Georgia,serif;font-style:italic;font-size:22px;color:#111;margin-bottom:2px}}
-.firma-label{{font-size:8px;letter-spacing:2px;color:#555;text-transform:uppercase}}
-.targa-wrap{{display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 16px;align-self:center}}
-.targa-label{{font-size:8px;color:#555;letter-spacing:1px;text-transform:uppercase;margin-bottom:3px}}
-.targa-box{{background:#fff;border:1.5px solid #333;border-radius:3px;padding:2px 12px;font-family:monospace;font-size:13px;font-weight:700;color:#111;letter-spacing:3px}}
-.barcode{{display:flex;flex-direction:column;align-items:center;justify-content:center;margin-left:auto}}
-.bars{{display:flex;gap:2px;height:62px;align-items:stretch}}
-.barcode-num{{font-family:monospace;font-size:8px;color:#333;margin-top:3px}}
-.fnote{{position:absolute;bottom:6px;right:14px;font-size:7px;color:#888}}
-</style>
-</head>
-<body>
-<div class="card">
-  <div class="hdr">
-    <div class="hdr-title">ECLIPSE CITY<sup>USA</sup></div>
-    <div class="hdr-sep"></div>
-    <div class="hdr-dl">DRIVER LICENSE</div>
-    <div class="hdr-fed">FEDERAL<br>LIMITS<br>APPLY</div>
-  </div>
-  <div class="photo">{foto_tag}</div>
-  <div class="classe">CLASS:&nbsp;{classe}</div>
-  <div class="dati">
-    <div class="f"><span class="fl">DL:</span><span class="fv red">{numero_dl}</span></div>
-    <div class="f"><span class="fl">EXP:</span><span class="fv red">{scadenza}</span></div>
-    <div class="f"><span class="fl">LN:</span><span class="fv">{cognome.upper()}</span></div>
-    <div class="f"><span class="fl">FN:</span><span class="fv">{nome.upper()}</span></div>
-    <div class="f"><span class="fl">ADDR:</span><span class="fv" style="font-size:13px">{indirizzo}</span></div>
-    <div class="f"><span class="fl">DOB:</span><span class="fv red">{eta} anni — {nazionalita.upper()}</span></div>
-    <div class="frow">
-      <div class="f"><span class="fl">SEX</span><span class="fv">{sesso.upper()}</span></div>
-      <div class="f"><span class="fl">HAIR</span><span class="fv">{capelli.upper()}</span></div>
-      <div class="f"><span class="fl">EYES</span><span class="fv">{occhi.upper()}</span></div>
-    </div>
-    <div class="f"><span class="fl">RSTR:</span><span class="fv">NESSUNA</span></div>
-  </div>
-  <div class="footer">
-    <div class="firma-block">
-      <div class="firma-text">{nome} {cognome}</div>
-      <div class="firma-label">Firma del Titolare</div>
-    </div>
-    <div class="targa-wrap">
-      <div class="targa-label">Targa Veicolo</div>
-      <div class="targa-box">{targa if targa else "—"}</div>
-    </div>
-    <div class="barcode">
-      <div class="bars">
-        <div style="width:2.5px;background:#111"></div><div style="width:1px;background:#111"></div>
-        <div style="width:3.5px;background:#111"></div><div style="width:1px;background:#111"></div>
-        <div style="width:2px;background:#111"></div><div style="width:4px;background:#111"></div>
-        <div style="width:1px;background:#111"></div><div style="width:2.5px;background:#111"></div>
-        <div style="width:3px;background:#111"></div><div style="width:1px;background:#111"></div>
-        <div style="width:2px;background:#111"></div><div style="width:4px;background:#111"></div>
-        <div style="width:1.5px;background:#111"></div><div style="width:2.5px;background:#111"></div>
-        <div style="width:3px;background:#111"></div><div style="width:1px;background:#111"></div>
-        <div style="width:2px;background:#111"></div><div style="width:4px;background:#111"></div>
-        <div style="width:2px;background:#111"></div><div style="width:1px;background:#111"></div>
-        <div style="width:3px;background:#111"></div><div style="width:2px;background:#111"></div>
-        <div style="width:1px;background:#111"></div><div style="width:2px;background:#111"></div>
-        <div style="width:4px;background:#111"></div><div style="width:1.5px;background:#111"></div>
-      </div>
-      <div class="barcode-num">NNNAN/ANFD/YY</div>
-    </div>
-    <div class="fnote">Documento fittizio · Solo uso roleplay</div>
-  </div>
-</div>
-</body>
-</html>"""
-    return html.encode("utf-8")
-
 # --- 🔑 TOKEN DISCORD E ID DEVELOPER ---
 try:
     from dotenv import load_dotenv
@@ -2105,40 +1968,21 @@ async def registra(
         embed.set_thumbnail(url=foto.url)
         await interaction.channel.send(embed=embed)
 
-        # Recupera indirizzo se presente
-        indirizzo = proprieta_immobili.get(str(user_id), {}).get("indirizzo", "Senza fissa dimora") if str(user_id) in proprieta_immobili else "Senza fissa dimora"
-
-        # Genera la patente HTML con i dati reali del personaggio
-        html_bytes = genera_patente_html(
-            nome=dati["nome"],
-            cognome=dati["cognome"],
-            sesso=dati["sesso"],
-            eta=dati["eta"],
-            nazionalita=dati["nazionalita"],
-            capelli=dati["capelli"],
-            occhi=dati["occhi"],
-            foto_url=dati["foto_url"],
-            numero_dl="IN ATTESA",
-            scadenza="NON RILASCIATA",
-            classe="C",
-            indirizzo=indirizzo,
-            targa="",
+        doc_embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
+        doc_embed.description = (
+            f"📄 | **DOCUMENTO D'IDENTITÀ**\n\n"
+            f"**Cittadino:**\n➢ {interaction.user.mention}\n\n"
+            f"**Telefono:**\n➢ 📞 `{numero_formattato}`\n\n"
+            f"**Nome:**\n➢ *{dati['nome']}*\n\n"
+            f"**Cognome:**\n➢ *{dati['cognome']}*\n\n"
+            f"**Nazionalità:**\n➢ *{dati['nazionalita']}*\n\n"
+            f"**Età:**\n➢ *{dati['eta']}*\n\n"
+            f"**Sesso:**\n➢ *{dati['sesso']}*\n\n"
+            f"**Colore Occhi:**\n➢ *{dati['occhi']}*\n\n"
+            f"**Colore Capelli:**\n➢ *{dati['capelli']}*"
         )
-
-        # Invia la patente come file HTML allegato nel canale
-        patente_file = discord.File(
-            fp=io.BytesIO(html_bytes),
-            filename=f"patente_{dati['cognome'].lower()}_{dati['nome'].lower()}.html"
-        )
-        patente_embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
-        patente_embed.description = (
-            f"🪪 | **PATENTE DI GUIDA — ECLIPSE CITY**\n"
-            f"➢ {interaction.user.mention}\n\n"
-            f"📋 Apri il file allegato per visualizzare la patente completa.\n\n"
-            f"**Tel:** 📞 `{numero_formattato}`"
-        )
-        patente_embed.set_thumbnail(url=foto.url)
-        await interaction.channel.send(embed=patente_embed, file=patente_file)
+        doc_embed.set_image(url=foto.url)
+        await interaction.channel.send(embed=doc_embed)
 
     except ValueError:
         await interaction.response.send_message("❌ Inserisci un numero valido per l'età.", ephemeral=True)
