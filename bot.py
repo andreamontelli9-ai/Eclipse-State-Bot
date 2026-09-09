@@ -7661,9 +7661,22 @@ async def pagamento_rate_task():
 # 🏝️ ISLA DE ORO — Sistema Ordini Ristorante
 # ══════════════════════════════════════════════════════════════════
 
-ISLA_CANALE_ORDINI_ID = 1532128326205051050
-ISLA_RUOLO_CAMERIERE  = 1532126534284869715
-ISLA_CASSA_UID        = 1532128326205051050
+ISLA_CANALE_ORDINI_ID  = 1532128326205051050
+ISLA_RUOLO_CAMERIERE   = 1532126534284869715
+ISLA_CASSA_UID         = 1532128326205051050
+
+# ─── CUCINA — ID ruolo chef e canale cucina ───────────────────────
+ISLA_RUOLO_CHEF        = RUOLO_DIRETTORE_ISLA_DE_ORO   # lo chef usa il ruolo direttore (oppure metti un ID separato)
+ISLA_CANALE_CUCINA_ID  = ISLA_CANALE_ORDINI_ID         # il canale dove appaiono i comandi cucina (usa lo stesso ordini; cambia se hai un canale dedicato)
+
+# Coda ordini in attesa di cottura: { order_id: { "piatto", "cliente_uid", "cliente_nome", "note", "cameriere_uid", "cameriere_nome", "stato" } }
+isla_coda_cucina: dict = {}
+_isla_ordine_counter = 0  # contatore incrementale ID ordine
+
+def _isla_nuovo_ordine_id() -> int:
+    global _isla_ordine_counter
+    _isla_ordine_counter += 1
+    return _isla_ordine_counter
 
 ISLA_MENU = {
     "🦐 Carpaccio de Carabinero Real":        {"prezzo": 650,   "cat": "🌊 Menú de Mar — Antipasti"},
@@ -8068,6 +8081,18 @@ class IslaConfermaModal(discord.ui.Modal, title="🍽️ Conferma Ordine"):
         _registra_transazione(uid, "−", prezzo, f"⚓ Ordine Isla de Oro", piatto)
         _salva_dati()
 
+        # ─── Aggiunge l'ordine alla coda cucina ─────────────────────────
+        oid = _isla_nuovo_ordine_id()
+        isla_coda_cucina[oid] = {
+            "piatto":        piatto,
+            "cliente_uid":   uid,
+            "cliente_nome":  inter.user.display_name,
+            "note":          note_txt,
+            "cameriere_uid": None,   # verrà aggiornato se si trova un cameriere
+            "cameriere_nome": None,
+            "stato":         "in_attesa",
+        }
+
         guild = inter.guild
         # Log nel canale economia
         if guild:
@@ -8099,6 +8124,10 @@ class IslaConfermaModal(discord.ui.Modal, title="🍽️ Conferma Ordine"):
             if cameriere_trovato.id not in inventari:
                 inventari[cameriere_trovato.id] = []
             inventari[cameriere_trovato.id].append(f"🍽️ {piatto} [per {inter.user.display_name}]")
+            # Aggiorna l'ordine in cucina col cameriere assegnato
+            if oid in isla_coda_cucina:
+                isla_coda_cucina[oid]["cameriere_uid"]  = cameriere_trovato.id
+                isla_coda_cucina[oid]["cameriere_nome"] = cameriere_trovato.display_name
             _salva_dati()
 
         embed_ok = discord.Embed(
@@ -8218,6 +8247,283 @@ class IslaMenuCategoriaView(discord.ui.View):
 
         sel.callback = sel_callback
         self.add_item(sel)
+
+
+# ══════════════════════════════════════════════════════════════════
+# 👨‍🍳 CUCINA — Isla de Oro
+# ══════════════════════════════════════════════════════════════════
+
+def _isla_embed_cucina_lista(ordini: dict) -> discord.Embed:
+    """Genera l'embed con la coda cucina attuale."""
+    embed = discord.Embed(
+        title="👨‍🍳 CUCINA — ISLA DE ORO",
+        color=discord.Color.from_rgb(255, 107, 53),
+        timestamp=datetime.now()
+    )
+    embed.set_author(name="Sistema Cucina Isla de Oro", icon_url=LOGO_SERVER)
+    embed.set_thumbnail(url=LOGO_SERVER)
+
+    in_attesa   = {k: v for k, v in ordini.items() if v["stato"] == "in_attesa"}
+    in_cottura  = {k: v for k, v in ordini.items() if v["stato"] == "in_cottura"}
+    pronti      = {k: v for k, v in ordini.items() if v["stato"] == "pronto"}
+
+    def fmt_ordine(oid, o):
+        note = f" *(note: {o['note']})*" if o.get("note") and o["note"] != "Nessuna" else ""
+        cam = f" | cam: <@{o['cameriere_uid']}>" if o.get("cameriere_uid") else ""
+        return f"**[#{oid}]** {o['piatto']} — <@{o['cliente_uid']}>{note}{cam}"
+
+    if in_attesa:
+        embed.add_field(
+            name=f"🔴 In Attesa di Cottura ({len(in_attesa)})",
+            value="\n".join(fmt_ordine(k, v) for k, v in in_attesa.items()),
+            inline=False
+        )
+    if in_cottura:
+        embed.add_field(
+            name=f"🟡 In Cottura ({len(in_cottura)})",
+            value="\n".join(fmt_ordine(k, v) for k, v in in_cottura.items()),
+            inline=False
+        )
+    if pronti:
+        embed.add_field(
+            name=f"✅ Pronti da Servire ({len(pronti)})",
+            value="\n".join(fmt_ordine(k, v) for k, v in pronti.items()),
+            inline=False
+        )
+    if not in_attesa and not in_cottura and not pronti:
+        embed.description = "✅ *Nessun ordine in coda. La cucina è libera!* 🍽️"
+    else:
+        embed.set_footer(text="Usa i bottoni per aggiornare lo stato degli ordini | Aggiornato")
+
+    return embed
+
+
+class IslaCucinaView(discord.ui.View):
+    """View principale cucina — permette allo chef di gestire la coda ordini."""
+
+    def __init__(self, chef_uid: int):
+        super().__init__(timeout=300)
+        self.chef_uid = chef_uid
+
+    async def _check_chef(self, inter: discord.Interaction) -> bool:
+        membro = inter.guild.get_member(inter.user.id) or inter.user
+        ha_ruolo = any(r.id in (ISLA_RUOLO_CHEF, RUOLO_DIPENDENTE_ISLA_DE_ORO) for r in getattr(membro, "roles", []))
+        if not (ha_ruolo or membro.guild_permissions.administrator):
+            await inter.response.send_message("❌ Solo lo chef o lo staff della cucina può usare questo pannello.", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="🟡 Inizia Cottura", style=discord.ButtonStyle.primary, emoji="🍳", row=0)
+    async def inizia_cottura(self, inter: discord.Interaction, button: discord.ui.Button):
+        if not await self._check_chef(inter):
+            return
+        in_attesa = {k: v for k, v in isla_coda_cucina.items() if v["stato"] == "in_attesa"}
+        if not in_attesa:
+            return await inter.response.send_message("ℹ️ Nessun ordine in attesa di cottura.", ephemeral=True)
+        opzioni = [
+            discord.SelectOption(
+                label=f"#{k} — {v['piatto'][:60]}",
+                value=str(k),
+                description=f"Cliente: {v['cliente_nome']} | Note: {(v.get('note') or 'Nessuna')[:40]}"
+            )
+            for k, v in list(in_attesa.items())[:25]
+        ]
+        sel = discord.ui.Select(placeholder="🍳 Quale ordine inizia la cottura?", options=opzioni)
+
+        async def sel_cb(inter2: discord.Interaction):
+            oid = int(sel.values[0])
+            if oid not in isla_coda_cucina:
+                return await inter2.response.send_message("❌ Ordine non trovato.", ephemeral=True)
+            isla_coda_cucina[oid]["stato"] = "in_cottura"
+            piatto = isla_coda_cucina[oid]["piatto"]
+
+            # Notifica nel canale cucina
+            embed_notif = discord.Embed(
+                color=discord.Color.yellow(),
+                title="🍳 COTTURA INIZIATA",
+                timestamp=datetime.now()
+            )
+            embed_notif.set_author(name="Cucina Isla de Oro", icon_url=LOGO_SERVER)
+            embed_notif.description = (
+                f"**[#{oid}] {piatto}**\n"
+                f"**👤 Cliente ➢** <@{isla_coda_cucina[oid]['cliente_uid']}>\n"
+                f"**👨‍🍳 Chef ➢** {inter2.user.mention}\n"
+                f"**📝 Note ➢** {isla_coda_cucina[oid].get('note', 'Nessuna')}"
+            )
+            embed_notif.set_footer(text=f"Stato: 🟡 In Cottura")
+            canale = inter2.guild.get_channel(ISLA_CANALE_CUCINA_ID) if inter2.guild else None
+            if canale:
+                try:
+                    await canale.send(embed=embed_notif)
+                except Exception:
+                    pass
+
+            await inter2.response.send_message(
+                f"🍳 Cottura iniziata per **[#{oid}] {piatto}**!", ephemeral=True
+            )
+            # Aggiorna il pannello principale
+            await inter.message.edit(embed=_isla_embed_cucina_lista(isla_coda_cucina), view=IslaCucinaView(self.chef_uid))
+
+        sel.callback = sel_cb
+        v = discord.ui.View(timeout=60)
+        v.add_item(sel)
+        await inter.response.send_message("🍳 Seleziona l'ordine da iniziare:", view=v, ephemeral=True)
+
+    @discord.ui.button(label="✅ Piatto Pronto", style=discord.ButtonStyle.success, emoji="🔔", row=0)
+    async def piatto_pronto(self, inter: discord.Interaction, button: discord.ui.Button):
+        if not await self._check_chef(inter):
+            return
+        in_cottura = {k: v for k, v in isla_coda_cucina.items() if v["stato"] == "in_cottura"}
+        if not in_cottura:
+            return await inter.response.send_message("ℹ️ Nessun ordine in cottura.", ephemeral=True)
+        opzioni = [
+            discord.SelectOption(
+                label=f"#{k} — {v['piatto'][:60]}",
+                value=str(k),
+                description=f"Cliente: {v['cliente_nome']}"
+            )
+            for k, v in list(in_cottura.items())[:25]
+        ]
+        sel = discord.ui.Select(placeholder="✅ Quale piatto è pronto?", options=opzioni)
+
+        async def sel_cb(inter2: discord.Interaction):
+            oid = int(sel.values[0])
+            if oid not in isla_coda_cucina:
+                return await inter2.response.send_message("❌ Ordine non trovato.", ephemeral=True)
+            isla_coda_cucina[oid]["stato"] = "pronto"
+            piatto = isla_coda_cucina[oid]["piatto"]
+            cam_uid = isla_coda_cucina[oid].get("cameriere_uid")
+
+            # Notifica nel canale cucina
+            embed_notif = discord.Embed(
+                color=discord.Color.green(),
+                title="🔔 PIATTO PRONTO — DA SERVIRE!",
+                timestamp=datetime.now()
+            )
+            embed_notif.set_author(name="Cucina Isla de Oro", icon_url=LOGO_SERVER)
+            embed_notif.description = (
+                f"**[#{oid}] {piatto}**\n"
+                f"**👤 Cliente ➢** <@{isla_coda_cucina[oid]['cliente_uid']}>\n"
+                f"**👨‍🍳 Chef ➢** {inter2.user.mention}\n"
+                + (f"**🤵 Cameriere ➢** <@{cam_uid}> — *vai a ritirare il piatto!*" if cam_uid else "⚠️ *Nessun cameriere assegnato.*")
+            )
+            embed_notif.set_footer(text="Stato: ✅ Pronto — In attesa di servizio")
+            canale = inter2.guild.get_channel(ISLA_CANALE_CUCINA_ID) if inter2.guild else None
+            content_ping = f"<@{cam_uid}> 🔔 Il piatto **{piatto}** è **PRONTO**! Vai a ritirarlo in cucina." if cam_uid else "@here 🔔 Piatto pronto senza cameriere assegnato!"
+            if canale:
+                try:
+                    await canale.send(content=content_ping, embed=embed_notif)
+                except Exception:
+                    pass
+
+            await inter2.response.send_message(
+                f"✅ **[#{oid}] {piatto}** segnato come pronto! Il cameriere è stato avvisato.", ephemeral=True
+            )
+            await inter.message.edit(embed=_isla_embed_cucina_lista(isla_coda_cucina), view=IslaCucinaView(self.chef_uid))
+
+        sel.callback = sel_cb
+        v = discord.ui.View(timeout=60)
+        v.add_item(sel)
+        await inter.response.send_message("✅ Seleziona il piatto pronto:", view=v, ephemeral=True)
+
+    @discord.ui.button(label="🗑️ Rimuovi Ordine", style=discord.ButtonStyle.danger, emoji="🗑️", row=1)
+    async def rimuovi_ordine(self, inter: discord.Interaction, button: discord.ui.Button):
+        if not await self._check_chef(inter):
+            return
+        attivi = {k: v for k, v in isla_coda_cucina.items() if v["stato"] != "consegnato"}
+        if not attivi:
+            return await inter.response.send_message("ℹ️ Nessun ordine attivo da rimuovere.", ephemeral=True)
+        opzioni = [
+            discord.SelectOption(
+                label=f"#{k} — {v['piatto'][:60]}",
+                value=str(k),
+                description=f"Stato: {v['stato']}"
+            )
+            for k, v in list(attivi.items())[:25]
+        ]
+        sel = discord.ui.Select(placeholder="🗑️ Quale ordine eliminare dalla coda?", options=opzioni)
+
+        async def sel_cb(inter2: discord.Interaction):
+            oid = int(sel.values[0])
+            if oid in isla_coda_cucina:
+                piatto = isla_coda_cucina[oid]["piatto"]
+                del isla_coda_cucina[oid]
+                await inter2.response.send_message(f"🗑️ Ordine **[#{oid}] {piatto}** rimosso dalla coda.", ephemeral=True)
+                await inter.message.edit(embed=_isla_embed_cucina_lista(isla_coda_cucina), view=IslaCucinaView(self.chef_uid))
+            else:
+                await inter2.response.send_message("❌ Ordine non trovato.", ephemeral=True)
+
+        sel.callback = sel_cb
+        v = discord.ui.View(timeout=60)
+        v.add_item(sel)
+        await inter.response.send_message("🗑️ Seleziona l'ordine da eliminare:", view=v, ephemeral=True)
+
+    @discord.ui.button(label="🔄 Aggiorna", style=discord.ButtonStyle.secondary, emoji="🔄", row=1)
+    async def aggiorna(self, inter: discord.Interaction, button: discord.ui.Button):
+        await inter.response.edit_message(embed=_isla_embed_cucina_lista(isla_coda_cucina), view=IslaCucinaView(self.chef_uid))
+
+    @discord.ui.button(label="➕ Ordine Manuale", style=discord.ButtonStyle.secondary, emoji="📋", row=1)
+    async def ordine_manuale(self, inter: discord.Interaction, button: discord.ui.Button):
+        """Permette allo chef/staff di aggiungere manualmente un ordine alla coda."""
+        if not await self._check_chef(inter):
+            return
+        await inter.response.send_modal(IslaCucinaOrdineManuale())
+
+
+class IslaCucinaOrdineManuale(discord.ui.Modal, title="📋 Aggiungi Ordine Manuale — Cucina"):
+    piatto_input = discord.ui.TextInput(
+        label="Nome del piatto",
+        placeholder="Es: Wagyu A5 Tomahawk 1,2kg",
+        required=True,
+        max_length=100
+    )
+    cliente_input = discord.ui.TextInput(
+        label="Nome IC del cliente",
+        placeholder="Es: Marco Rossi",
+        required=True,
+        max_length=80
+    )
+    note_input = discord.ui.TextInput(
+        label="Note cucina",
+        style=discord.TextStyle.paragraph,
+        placeholder="Es: cottura al sangue, senza cipolla...",
+        required=False,
+        max_length=200
+    )
+
+    async def on_submit(self, inter: discord.Interaction):
+        oid = _isla_nuovo_ordine_id()
+        isla_coda_cucina[oid] = {
+            "piatto": self.piatto_input.value.strip(),
+            "cliente_uid": inter.user.id,
+            "cliente_nome": self.cliente_input.value.strip(),
+            "note": self.note_input.value.strip() or "Nessuna",
+            "cameriere_uid": None,
+            "cameriere_nome": None,
+            "stato": "in_attesa"
+        }
+        await inter.response.send_message(
+            f"✅ Ordine **[#{oid}] {isla_coda_cucina[oid]['piatto']}** aggiunto manualmente alla coda cucina.",
+            ephemeral=True
+        )
+
+
+@bot.tree.command(name="cucina", description="👨‍🍳 Pannello cucina Isla de Oro — gestisci gli ordini [Solo Chef/Staff]")
+async def cucina_cmd(interaction: discord.Interaction):
+    membro = interaction.guild.get_member(interaction.user.id) if interaction.guild else interaction.user
+    ha_ruolo = any(
+        r.id in (ISLA_RUOLO_CHEF, RUOLO_DIPENDENTE_ISLA_DE_ORO, RUOLO_SICUREZZA_ISLA_DE_ORO)
+        for r in getattr(membro, "roles", [])
+    )
+    is_admin = getattr(getattr(membro, "guild_permissions", None), "administrator", False)
+    if not (ha_ruolo or is_admin):
+        return await interaction.response.send_message(
+            "❌ Solo lo chef e lo staff dell'Isla de Oro possono accedere al pannello cucina.",
+            ephemeral=True
+        )
+    embed = _isla_embed_cucina_lista(isla_coda_cucina)
+    view  = IslaCucinaView(interaction.user.id)
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 
 @bot.tree.command(name="isla-de-oro", description="⚓ Apri il menú del ristorante Isla de Oro")
