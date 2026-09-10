@@ -98,10 +98,12 @@ STIPENDI_DUE_GRADI = {
 RUOLO_DIRETTORE_ISLA_DE_ORO = 1532126532011692062
 RUOLO_DIPENDENTE_ISLA_DE_ORO = 1532126529738244416
 RUOLO_SICUREZZA_ISLA_DE_ORO = 1532126527301488771
+RUOLO_CHEF_ISLA_DE_ORO = 1547607841026744462
 
 RUOLI_ISLA_DE_ORO = {
     "dipendente": RUOLO_DIPENDENTE_ISLA_DE_ORO,
     "sicurezza": RUOLO_SICUREZZA_ISLA_DE_ORO,
+    "chef isla de oro": RUOLO_CHEF_ISLA_DE_ORO,
     "direttore isla de oro": RUOLO_DIRETTORE_ISLA_DE_ORO,
 }
 
@@ -135,6 +137,7 @@ GRADI_PER_LAVORO = {
     "isla_de_oro": [
         ("dipendente", 2500),
         ("sicurezza", 3000),
+        ("chef isla de oro", 8500),
         ("direttore isla de oro", 0),
     ],
     "navyseal": [
@@ -6384,50 +6387,81 @@ def _assegna_kit_a_membro(membro: discord.Member, nome_kit: str):
 def _build_embed_armadietto() -> discord.Embed:
     """Costruisce l'embed principale dell'armadietto (usato anche dal menu persistente)."""
     tot  = len(armadietto_fdo)
-    mspd = len(_kit_per_categoria("MSPD"))
+    ecpd = len(_kit_per_categoria("MSPD"))
     fbi  = len(_kit_per_categoria("FBI"))
+    ora  = datetime.now().strftime("%d/%m/%Y • %H:%M")
 
     embed = discord.Embed(
-        title="🗄️  ARMADIETTO — FORZE DELL'ORDINE",
-        color=discord.Color.from_rgb(30, 144, 255),
+        title="🗄️  ARMADIETTO FORZE DELL'ORDINE",
+        description=(
+            "```ansi\n"
+            "\u001b[1;34m╔══════════════════════════════════════╗\u001b[0m\n"
+            "\u001b[1;34m║   ECLIPSE CITY — SISTEMA DOTAZIONI   ║\u001b[0m\n"
+            "\u001b[1;34m╚══════════════════════════════════════╝\u001b[0m\n"
+            "```"
+            "Gestisci i kit di dotazione ufficiali per il personale delle **Forze dell'Ordine**.\n"
+            "Ogni kit contiene equipaggiamento approvato e viene tracciato nel sistema."
+        ),
+        color=discord.Color.from_rgb(15, 98, 189),
         timestamp=datetime.now()
     )
-    embed.set_author(name="Eclipse City RP — Reparto FDO", icon_url=LOGO_SERVER)
+    embed.set_author(name="Eclipse City RP® — Gestione Armadietto FDO", icon_url=LOGO_SERVER)
     embed.set_thumbnail(url=LOGO_SERVER)
 
-    # Barra visiva kit
-    barra_mspd = "🟦" * min(mspd, 10) + "⬛" * max(0, 10 - min(mspd, 10))
-    barra_fbi  = "🟥" * min(fbi,  10) + "⬛" * max(0, 10 - min(fbi,  10))
+    # ── Statistiche reparti ──
+    barra_ecpd = "🟦" * min(ecpd, 8) + "⬜" * max(0, 8 - min(ecpd, 8))
+    barra_fbi  = "🟥" * min(fbi,  8) + "⬜" * max(0, 8 - min(fbi,  8))
 
     embed.add_field(
-        name="📊 Statistiche Armadietto",
+        name="🚔 ECPD — Eclipse City Police Dept.",
+        value=f"{barra_ecpd}  **{ecpd}** kit attivi",
+        inline=True
+    )
+    embed.add_field(
+        name="🕵️ FBI — Federal Bureau of Investigation",
+        value=f"{barra_fbi}  **{fbi}** kit attivi",
+        inline=True
+    )
+    embed.add_field(name="\u200b", value="\u200b", inline=True)
+
+    embed.add_field(
+        name="📊 Riepilogo Sistema",
         value=(
             f"```\n"
-            f"  Kit Totali : {tot:>3}\n"
-            f"  MSPD       : {mspd:>3}\n"
-            f"  FBI        : {fbi:>3}\n"
+            f"  ┌─────────────────────────────┐\n"
+            f"  │  Kit Totali   :  {tot:>3}         │\n"
+            f"  │  ECPD         :  {ecpd:>3}         │\n"
+            f"  │  FBI          :  {fbi:>3}         │\n"
+            f"  └─────────────────────────────┘\n"
             f"```"
         ),
         inline=False
     )
-    embed.add_field(name="🚔 MSPD", value=barra_mspd, inline=True)
-    embed.add_field(name="🕵️ FBI",  value=barra_fbi,  inline=True)
-    embed.add_field(name="\u200b", value="\u200b", inline=True)
 
     embed.add_field(
-        name="📋 Azioni disponibili",
+        name="🛠️ Azioni Disponibili",
         value=(
-            "```\n"
-            "  ➕  Crea Kit         — Crea un nuovo kit dotazione\n"
-            "  📋  Lista Kit        — Visualizza kit per categoria\n"
-            "  📤  Assegna Kit      — Assegna kit a un agente\n"
-            "  🗑️  Elimina Kit      — Rimuovi un kit dall'armadietto\n"
-            "  🔄  Lascia Kit       — Riconsegna kit a fine turno\n"
-            "```"
+            "╔═══════════════════════════════════════╗\n"
+            "║  ➕ **Crea Kit**  — Crea una nuova dotazione\n"
+            "║  📋 **Lista Kit** — Sfoglia kit per reparto\n"
+            "║  📤 **Assegna**   — Assegna kit a un agente\n"
+            "║  🗑️ **Elimina**   — Rimuovi kit dal sistema\n"
+            "║  🔄 **Lascia**    — Riconsegna a fine turno\n"
+            "╚═══════════════════════════════════════╝"
         ),
         inline=False
     )
-    embed.set_footer(text="Eclipse City RP — Solo uso interno FDO | Aggiornato")
+
+    embed.add_field(
+        name="⚠️ Uso Interno",
+        value="*Questo sistema è riservato esclusivamente al personale autorizzato FDO. Ogni operazione viene registrata nel log dello staff.*",
+        inline=False
+    )
+
+    embed.set_footer(
+        text=f"Eclipse City RP® — Sistema FDO  •  Aggiornato {ora}",
+        icon_url=LOGO_SERVER
+    )
     return embed
 
 
@@ -6509,7 +6543,7 @@ class ArmadiettoFdoPersistentView(discord.ui.View):
         # Mostra sub-view per scegliere categoria
         class CatListaView(discord.ui.View):
             def __init__(sv): super().__init__(timeout=30)
-            @discord.ui.button(label="🚔 MSPD", style=discord.ButtonStyle.primary)
+            @discord.ui.button(label="🚔 ECPD", style=discord.ButtonStyle.primary)
             async def mspd(sv, i, b): await self._lista_cat(i, "MSPD")
             @discord.ui.button(label="🕵️ FBI", style=discord.ButtonStyle.danger)
             async def fbi(sv, i, b): await self._lista_cat(i, "FBI")
@@ -6569,7 +6603,7 @@ class ArmadiettoFdoPersistentView(discord.ui.View):
                 v.add_item(KitSel())
                 await i.response.send_message("Scegli il kit:", view=v, ephemeral=True)
 
-            @discord.ui.button(label="🚔 MSPD", style=discord.ButtonStyle.primary)
+            @discord.ui.button(label="🚔 ECPD", style=discord.ButtonStyle.primary)
             async def mspd(sv, i, b): await sv._scegli_kit(i, "MSPD")
             @discord.ui.button(label="🕵️ FBI", style=discord.ButtonStyle.danger)
             async def fbi(sv, i, b): await sv._scegli_kit(i, "FBI")
@@ -6606,7 +6640,7 @@ class ArmadiettoFdoPersistentView(discord.ui.View):
                 v = discord.ui.View(timeout=60)
                 v.add_item(ElSel())
                 await i.response.send_message("Scegli il kit da eliminare:", view=v, ephemeral=True)
-            @discord.ui.button(label="🚔 MSPD", style=discord.ButtonStyle.primary)
+            @discord.ui.button(label="🚔 ECPD", style=discord.ButtonStyle.primary)
             async def mspd(sv, i, b): await sv._scegli(i, "MSPD")
             @discord.ui.button(label="🕵️ FBI", style=discord.ButtonStyle.danger)
             async def fbi(sv, i, b): await sv._scegli(i, "FBI")
