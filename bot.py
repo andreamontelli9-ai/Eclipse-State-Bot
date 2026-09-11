@@ -3291,6 +3291,72 @@ async def rapina(interaction: discord.Interaction):
 # 8. 📜 SISTEMA ITEM E VENDITA
 # ==========================================
 
+# ─── 🦹 RUBAITEM ──────────────────────────────────────────────────────────────
+RUOLO_CRIMINALE = 1532126502055841926
+
+@bot.tree.command(name="rubaitem", description="🦹 Ruba un oggetto dall'inventario di un giocatore [Solo Criminali]")
+@app_commands.describe(
+    vittima="Il giocatore a cui rubare",
+    oggetto="L'oggetto da rubare"
+)
+async def rubaitem(interaction: discord.Interaction, vittima: discord.Member, oggetto: str):
+    membro = interaction.guild.get_member(interaction.user.id) if interaction.guild else interaction.user
+    ha_ruolo_crim = any(r.id == RUOLO_CRIMINALE for r in getattr(membro, "roles", []))
+    is_admin = getattr(getattr(membro, "guild_permissions", None), "administrator", False)
+    if not (ha_ruolo_crim or is_admin):
+        return await interaction.response.send_message(
+            "❌ Solo i **criminali** possono usare questo comando.", ephemeral=True
+        )
+    if vittima.id == interaction.user.id:
+        return await interaction.response.send_message("❌ Non puoi rubarti da solo.", ephemeral=True)
+
+    inv_vittima = inventari.get(vittima.id, [])
+    if oggetto not in inv_vittima:
+        return await interaction.response.send_message(
+            f"❌ **{vittima.display_name}** non ha **{oggetto}** nel suo inventario.", ephemeral=True
+        )
+
+    inv_vittima.remove(oggetto)
+    inventari[vittima.id] = inv_vittima
+    if interaction.user.id not in inventari:
+        inventari[interaction.user.id] = []
+    inventari[interaction.user.id].append(oggetto)
+    _salva_dati()
+
+    cat_info  = oggetti_creati.get(oggetto, {})
+    cat_emoji = _get_cat_emoji(cat_info.get("categoria", "Generale"))
+
+    embed = discord.Embed(
+        title="🦹 ITEM RUBATO",
+        color=discord.Color.from_rgb(255, 80, 40),
+        timestamp=datetime.now()
+    )
+    embed.set_thumbnail(url=vittima.display_avatar.url)
+    embed.description = (
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"{cat_emoji} **Oggetto** ➢ **{oggetto}**\n"
+        f"🎯 **Rubato a** ➢ {vittima.mention}\n"
+        f"🦹 **Rubato da** ➢ {interaction.user.mention}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    )
+    embed.set_footer(text="Sistema Inventario")
+    await interaction.response.send_message(embed=embed)
+    await log_staff(interaction.guild, f"🦹 {interaction.user.mention} ha rubato **{oggetto}** a {vittima.mention}.", discord.Color.from_rgb(255, 80, 40))
+    await log_azione(interaction.guild, interaction.user, "🦹 Item rubato", f"**{oggetto}** sottratto a {vittima.mention}", discord.Color.from_rgb(255, 80, 40), canale_origine=interaction.channel)
+
+@rubaitem.autocomplete("oggetto")
+async def rubaitem_autocomplete(interaction: discord.Interaction, current: str):
+    ns = interaction.namespace
+    vittima_id = None
+    if hasattr(ns, "vittima") and ns.vittima:
+        try:
+            vittima_id = int(str(ns.vittima.id))
+        except Exception:
+            pass
+    oggetti_vittima = list(set(inventari.get(vittima_id, []))) if vittima_id else []
+    return [app_commands.Choice(name=o, value=o) for o in oggetti_vittima if current.lower() in o.lower()][:25]
+
+
 @bot.tree.command(name="item-use", description="💊 Utilizza un oggetto dal tuo inventario o zaino")
 @_blocca_se_dorme()
 async def item_use(interaction: discord.Interaction, oggetto: str):
@@ -8369,6 +8435,7 @@ class IslaCucinaView(discord.ui.View):
             if oid not in isla_coda_cucina:
                 return await inter2.response.send_message("❌ Ordine non trovato.", ephemeral=True)
             isla_coda_cucina[oid]["stato"] = "in_cottura"
+            isla_coda_cucina[oid]["inizio_cottura"] = datetime.now().isoformat()
             piatto = isla_coda_cucina[oid]["piatto"]
 
             # Notifica nel canale cucina
@@ -8382,9 +8449,10 @@ class IslaCucinaView(discord.ui.View):
                 f"**[#{oid}] {piatto}**\n"
                 f"**👤 Cliente ➢** <@{isla_coda_cucina[oid]['cliente_uid']}>\n"
                 f"**👨‍🍳 Chef ➢** {inter2.user.mention}\n"
-                f"**📝 Note ➢** {isla_coda_cucina[oid].get('note', 'Nessuna')}"
+                f"**📝 Note ➢** {isla_coda_cucina[oid].get('note', 'Nessuna')}\n"
+                f"**⏱️ Cottura ➢** 1 minuto — poi premi **Piatto Pronto**"
             )
-            embed_notif.set_footer(text=f"Stato: 🟡 In Cottura")
+            embed_notif.set_footer(text="Stato: 🟡 In Cottura")
             canale = inter2.guild.get_channel(ISLA_CANALE_CUCINA_ID) if inter2.guild else None
             if canale:
                 try:
@@ -8393,9 +8461,8 @@ class IslaCucinaView(discord.ui.View):
                     pass
 
             await inter2.response.send_message(
-                f"🍳 Cottura iniziata per **[#{oid}] {piatto}**!", ephemeral=True
+                f"🍳 Cottura iniziata per **[#{oid}] {piatto}**!\n⏱️ Attendi **1 minuto** prima di premere ✅ Piatto Pronto.", ephemeral=True
             )
-            # Aggiorna il pannello principale
             await inter.message.edit(embed=_isla_embed_cucina_lista(isla_coda_cucina), view=IslaCucinaView(self.chef_uid))
 
         sel.callback = sel_cb
@@ -8424,11 +8491,39 @@ class IslaCucinaView(discord.ui.View):
             oid = int(sel.values[0])
             if oid not in isla_coda_cucina:
                 return await inter2.response.send_message("❌ Ordine non trovato.", ephemeral=True)
-            isla_coda_cucina[oid]["stato"] = "pronto"
-            piatto = isla_coda_cucina[oid]["piatto"]
-            cam_uid = isla_coda_cucina[oid].get("cameriere_uid")
 
-            # Notifica nel canale cucina
+            # ── Controllo timer 1 minuto ─────────────────────────────────
+            inizio_str = isla_coda_cucina[oid].get("inizio_cottura")
+            if inizio_str:
+                inizio_dt = datetime.fromisoformat(inizio_str)
+                secondi_passati = (datetime.now() - inizio_dt).total_seconds()
+                if secondi_passati < 60:
+                    rimanenti = int(60 - secondi_passati)
+                    return await inter2.response.send_message(
+                        f"⏳ Il piatto è ancora in cottura! Aspetta ancora **{rimanenti} secondi**.", ephemeral=True
+                    )
+
+            isla_coda_cucina[oid]["stato"] = "pronto"
+            piatto  = isla_coda_cucina[oid]["piatto"]
+            cam_uid = isla_coda_cucina[oid].get("cameriere_uid")
+            prezzo  = ISLA_MENU.get(piatto, {}).get("prezzo", 0)
+
+            # ── Pagamento immediato al direttore Isla de Oro ─────────────
+            dir_id = RUOLO_DIRETTORE_ISLA_DE_ORO  # 1532126532011692062 è l'ID ruolo
+            # Troviamo il membro con quel ruolo nel guild
+            guild = inter2.guild
+            direttore_membro = None
+            if guild:
+                ruolo_dir = guild.get_role(RUOLO_DIRETTORE_ISLA_DE_ORO)
+                if ruolo_dir and ruolo_dir.members:
+                    direttore_membro = ruolo_dir.members[0]
+            if direttore_membro and prezzo > 0:
+                if direttore_membro.id not in conti_bancari:
+                    conti_bancari[direttore_membro.id] = 0
+                conti_bancari[direttore_membro.id] += prezzo
+                _salva_dati()
+
+            # ── Notifica nel canale cucina ────────────────────────────────
             embed_notif = discord.Embed(
                 color=discord.Color.green(),
                 title="🔔 PIATTO PRONTO — DA SERVIRE!",
@@ -8440,10 +8535,17 @@ class IslaCucinaView(discord.ui.View):
                 f"**👤 Cliente ➢** <@{isla_coda_cucina[oid]['cliente_uid']}>\n"
                 f"**👨‍🍳 Chef ➢** {inter2.user.mention}\n"
                 + (f"**🤵 Cameriere ➢** <@{cam_uid}> — *vai a ritirare il piatto!*" if cam_uid else "⚠️ *Nessun cameriere assegnato.*")
+                + f"\n💰 **Incasso ➢** ${prezzo:,}" + (f" → accreditati a {direttore_membro.mention}" if direttore_membro else "")
             )
             embed_notif.set_footer(text="Stato: ✅ Pronto — In attesa di servizio")
             canale = inter2.guild.get_channel(ISLA_CANALE_CUCINA_ID) if inter2.guild else None
-            content_ping = f"<@{cam_uid}> 🔔 Il piatto **{piatto}** è **PRONTO**! Vai a ritirarlo in cucina." if cam_uid else "@here 🔔 Piatto pronto senza cameriere assegnato!"
+
+            # Ping cameriere: solo DOPO che il piatto è pronto
+            content_ping = (
+                f"<@{cam_uid}> 🔔 Il piatto **{piatto}** è **PRONTO**! Ritiralo in cucina e consegnalo al cliente."
+                if cam_uid else
+                f"<@&{RUOLO_DIPENDENTE_ISLA_DE_ORO}> 🔔 Piatto **{piatto}** pronto — nessun cameriere assegnato, qualcuno lo ritiri!"
+            )
             if canale:
                 try:
                     await canale.send(content=content_ping, embed=embed_notif)
@@ -8451,7 +8553,9 @@ class IslaCucinaView(discord.ui.View):
                     pass
 
             await inter2.response.send_message(
-                f"✅ **[#{oid}] {piatto}** segnato come pronto! Il cameriere è stato avvisato.", ephemeral=True
+                f"✅ **[#{oid}] {piatto}** pronto! Il cameriere è stato avvisato."
+                + (f"\n💰 **${prezzo:,}** accreditati al direttore dell'Isla de Oro." if prezzo > 0 and direttore_membro else ""),
+                ephemeral=True
             )
             await inter.message.edit(embed=_isla_embed_cucina_lista(isla_coda_cucina), view=IslaCucinaView(self.chef_uid))
 
