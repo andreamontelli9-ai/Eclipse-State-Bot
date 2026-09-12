@@ -2788,7 +2788,7 @@ async def servizio_entra(interaction: discord.Interaction):
     )
     embed.set_footer(text="Usa /fuoriservizio per terminare il turno.")
     await interaction.response.send_message(embed=embed)
-    await log_azione(interaction.guild, interaction.user, "🟢 Entrato in servizio", f"Lavoro: {lavoro.upper()}", discord.Color.from_rgb(57, 197, 110))
+    asyncio.create_task(log_azione(interaction.guild, interaction.user, "🟢 Entrato in servizio", f"Lavoro: {lavoro.upper()}", discord.Color.from_rgb(57, 197, 110)))
 
 
 @bot.tree.command(name="fuoriservizio", description="🔴 Termina il turno e mostra il tempo lavorato")
@@ -2801,22 +2801,23 @@ async def servizio_esci(interaction: discord.Interaction):
     lavoro = info_anagrafe.get("lavoro", "Cittadino")
 
     ora_inizio = turni_attivi.pop(user_id)
-    tempo_trascorso = datetime.now() - ora_inizio
+    now = datetime.now()
+    tempo_trascorso = now - ora_inizio
     minuti_totali = max(0, int(tempo_trascorso.total_seconds() / 60))
     ore = minuti_totali // 60
     minuti_resto = minuti_totali % 60
 
-    embed = discord.Embed(title="🔴 FINE TURNO", color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
+    embed = discord.Embed(title="🔴 FINE TURNO", color=discord.Color.from_rgb(255, 107, 53), timestamp=now)
     embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
     embed.set_thumbnail(url=interaction.user.display_avatar.url)
     embed.add_field(name="👤 Lavoratore", value=interaction.user.mention, inline=False)
     embed.add_field(name="💼 Lavoro", value=lavoro.upper(), inline=True)
     embed.add_field(name="🕐 Entrata", value=ora_inizio.strftime("%H:%M"), inline=True)
-    embed.add_field(name="🕐 Uscita", value=datetime.now().strftime("%H:%M"), inline=True)
+    embed.add_field(name="🕐 Uscita", value=now.strftime("%H:%M"), inline=True)
     embed.add_field(name="⏱️ Tempo lavorato", value=f"**{ore}h {minuti_resto}min**", inline=False)
     embed.set_footer(text="💼 Lo stipendio verrà erogato dallo staff.")
     await interaction.response.send_message(embed=embed)
-    await log_azione(interaction.guild, interaction.user, "🔴 Uscito dal servizio", f"Lavoro: {lavoro.upper()} | Tempo: {ore}h {minuti_resto}min", discord.Color.from_rgb(255, 107, 53))
+    asyncio.create_task(log_azione(interaction.guild, interaction.user, "🔴 Uscito dal servizio", f"Lavoro: {lavoro.upper()} | Tempo: {ore}h {minuti_resto}min", discord.Color.from_rgb(255, 107, 53)))
 
 @bot.tree.command(name="apri-attivita", description="🟢 Comunica in chat IC che la tua attività è aperta")
 @_blocca_se_dorme()
