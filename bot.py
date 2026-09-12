@@ -2771,138 +2771,52 @@ async def ricercato_toggle(interaction: discord.Interaction, utente: discord.Mem
 # 7. 💼 LAVORI E TURNI
 # ==========================================
 
-@bot.tree.command(name="servizio", description="🟢 Inizia il conteggio del turno per lo stipendio")
+@bot.tree.command(name="servizio", description="🟢 Inizia il conteggio del turno")
 async def servizio_entra(interaction: discord.Interaction):
     user_id = interaction.user.id
-    if user_id not in conti_bancari:
-        return await interaction.response.send_message("❌ **Conto non trovato:** Per iniziare il turno devi prima aprire un conto in banca con `/apriconto`.", ephemeral=True)
+    if user_id in turni_attivi:
+        return await interaction.response.send_message("⚠️ Sei già in servizio! Usa `/fuoriservizio` per terminare il turno corrente.", ephemeral=True)
     turni_attivi[user_id] = datetime.now()
     lavoro = documenti_identita.get(user_id, {}).get("lavoro", "Cittadino")
-    embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53))
+    embed = discord.Embed(color=discord.Color.from_rgb(57, 197, 110), timestamp=datetime.now())
+    embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
     embed.description = (
         f"🟢 | **TURNO LAVORATIVO INIZIATO**\n\n"
         f"**CITTADINO ➢**\n{interaction.user.mention}\n\n"
         f"**LAVORO ➢**\n{lavoro.upper()}\n\n"
-        f"**ORARIO/DATA ➢**\nOggi alle {datetime.now().strftime('%H:%M')}"
+        f"**ENTRATA ➢**\n{datetime.now().strftime('%d/%m/%Y alle %H:%M')}"
     )
-    embed.set_footer(text=f"{datetime.now().strftime('%d/%m/%Y %H:%M')}")
+    embed.set_footer(text="Usa /fuoriservizio per terminare il turno.")
     await interaction.response.send_message(embed=embed)
-    await log_azione(interaction.guild, interaction.user, "🟢 Entrato in servizio", f"Lavoro: {lavoro.upper()}", discord.Color.from_rgb(255, 107, 53))
-
-class StipendioApprovaView(discord.ui.View):
-    """View con bottoni Accetta/Rifiuta per approvazione stipendio da parte dello staff."""
-
-    def __init__(self, lavoratore: discord.Member, guadagno: int, info_anagrafe: dict, ore: int, minuti_resto: int, stipendio_pieno: int):
-        super().__init__(timeout=600)
-        self.lavoratore = lavoratore
-        self.guadagno = guadagno
-        self.info_anagrafe = info_anagrafe
-        self.ore = ore
-        self.minuti_resto = minuti_resto
-        self.stipendio_pieno = stipendio_pieno
-        self.gestito = False
-
-    def _is_staff(self, member: discord.Member) -> bool:
-        if member.guild_permissions.administrator or member.guild_permissions.manage_messages:
-            return True
-        if _ha_ruolo_id(member, RUOLO_POLIZIA_ID):
-            return True
-        if _ha_ruolo(member, _KW_STAFF):
-            return True
-        return False
-
-    @discord.ui.button(label="✅ ACCETTA STIPENDIO", style=discord.ButtonStyle.success, emoji="✅")
-    async def accetta(self, interaction: discord.Interaction, button: discord.ui.Button):
-        membro_staff = await _get_member(interaction)
-        if not self._is_staff(membro_staff):
-            return await interaction.response.send_message("❌ Solo lo staff può approvare gli stipendi!", ephemeral=True)
-        if self.gestito:
-            return await interaction.response.send_message("❌ Questo stipendio è già stato gestito.", ephemeral=True)
-        self.gestito = True
-        uid = self.lavoratore.id
-        if uid not in conti_bancari:
-            conti_bancari[uid] = 0
-        conti_bancari[uid] += self.guadagno
-        _salva_dati()
-
-        for child in self.children:
-            child.disabled = True
-        await interaction.message.edit(view=self)
-
-        embed = discord.Embed(title="✅ STIPENDIO APPROVATO", color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
-        embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
-        embed.add_field(name="👤 Lavoratore", value=self.lavoratore.mention, inline=False)
-        embed.add_field(name="💼 Lavoro", value=self.info_anagrafe.get("lavoro", "N/A").upper(), inline=True)
-        embed.add_field(name="⏱️ Tempo", value=f"{self.ore}h {self.minuti_resto}min", inline=True)
-        embed.add_field(name="💵 Accreditato", value=f"+{self.guadagno}$", inline=True)
-        embed.add_field(name="✅ Approvato da", value=interaction.user.mention, inline=False)
-        embed.set_footer(text="Fondi depositati sul conto Pacific Bank.")
-        await interaction.response.send_message(embed=embed)
-        await log_staff(interaction.guild, f"✅ {interaction.user.mention} ha approvato lo stipendio di {self.lavoratore.mention}: **+{self.guadagno}$**", discord.Color.from_rgb(255, 107, 53))
-        await log_azione(interaction.guild, interaction.user, "💰 Stipendio approvato", f"{self.lavoratore.mention} → +{self.guadagno}$ | Lavoro: {self.info_anagrafe.get('lavoro','N/A').upper()}", discord.Color.from_rgb(255, 107, 53))
-
-    @discord.ui.button(label="❌ RIFIUTA STIPENDIO", style=discord.ButtonStyle.danger, emoji="❌")
-    async def rifiuta(self, interaction: discord.Interaction, button: discord.ui.Button):
-        membro_staff = await _get_member(interaction)
-        if not self._is_staff(membro_staff):
-            return await interaction.response.send_message("❌ Solo lo staff può rifiutare gli stipendi!", ephemeral=True)
-        if self.gestito:
-            return await interaction.response.send_message("❌ Questo stipendio è già stato gestito.", ephemeral=True)
-        self.gestito = True
-
-        for child in self.children:
-            child.disabled = True
-        await interaction.message.edit(view=self)
-
-        embed = discord.Embed(title="❌ STIPENDIO RIFIUTATO", color=discord.Color.red(), timestamp=datetime.now())
-        embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
-        embed.add_field(name="👤 Lavoratore", value=self.lavoratore.mention, inline=False)
-        embed.add_field(name="💼 Lavoro", value=self.info_anagrafe.get("lavoro", "N/A").upper(), inline=True)
-        embed.add_field(name="⏱️ Tempo", value=f"{self.ore}h {self.minuti_resto}min", inline=True)
-        embed.add_field(name="💵 Stipendio (non erogato)", value=f"{self.guadagno}$", inline=True)
-        embed.add_field(name="❌ Rifiutato da", value=interaction.user.mention, inline=False)
-        embed.set_footer(text="Lo stipendio NON è stato accreditato.")
-        await interaction.response.send_message(embed=embed)
-        await log_staff(interaction.guild, f"❌ {interaction.user.mention} ha rifiutato lo stipendio di {self.lavoratore.mention} ({self.guadagno}$)", discord.Color.red())
+    await log_azione(interaction.guild, interaction.user, "🟢 Entrato in servizio", f"Lavoro: {lavoro.upper()}", discord.Color.from_rgb(57, 197, 110))
 
 
-@bot.tree.command(name="fuoriservizio", description="🔴 Stacca dal turno, calcola il tempo ed eroga i soldi in base al lavoro")
+@bot.tree.command(name="fuoriservizio", description="🔴 Termina il turno e mostra il tempo lavorato")
 async def servizio_esci(interaction: discord.Interaction):
     user_id = interaction.user.id
     if user_id not in turni_attivi:
-        return await interaction.response.send_message("❌ **Turno non iniziato:** Non risulti in servizio attivo. Usa prima `/servizio`.", ephemeral=True)
+        return await interaction.response.send_message("❌ Non risulti in servizio attivo. Usa prima `/servizio`.", ephemeral=True)
 
     info_anagrafe = documenti_identita.get(user_id, {"lavoro": "cittadino"})
-    nome_lavoro = info_anagrafe["lavoro"].lower()
+    lavoro = info_anagrafe.get("lavoro", "Cittadino")
 
-    stipendio_pieno = 1000
-    for chiave, stipendio in STIPENDI_LAVORO.items():
-        if chiave in nome_lavoro:
-            stipendio_pieno = stipendio
-            break
-
-    DURATA_TURNO_MINUTI = 120
-    ora_inizio = turni_attivi[user_id]
+    ora_inizio = turni_attivi.pop(user_id)
     tempo_trascorso = datetime.now() - ora_inizio
-    minuti_lavorati = max(1, int(tempo_trascorso.total_seconds() / 60))
-    guadagno = round((minuti_lavorati / DURATA_TURNO_MINUTI) * stipendio_pieno)
+    minuti_totali = max(0, int(tempo_trascorso.total_seconds() / 60))
+    ore = minuti_totali // 60
+    minuti_resto = minuti_totali % 60
 
-    del turni_attivi[user_id]
-
-    ore = minuti_lavorati // 60
-    minuti_resto = minuti_lavorati % 60
-
-    embed = discord.Embed(title="🔴 FINE TURNO — IN ATTESA DI APPROVAZIONE", color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
+    embed = discord.Embed(title="🔴 FINE TURNO", color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
     embed.set_author(name="Eclipse City RP®", icon_url=LOGO_SERVER)
+    embed.set_thumbnail(url=interaction.user.display_avatar.url)
     embed.add_field(name="👤 Lavoratore", value=interaction.user.mention, inline=False)
-    embed.add_field(name="💼 Lavoro Registrato", value=info_anagrafe['lavoro'].upper(), inline=False)
-    embed.add_field(name="⏱️ Tempo lavorato", value=f"{ore}h {minuti_resto}min", inline=True)
-    embed.add_field(name="💰 Stipendio pieno (2h)", value=f"{stipendio_pieno}$", inline=True)
-    embed.add_field(name="💵 Stipendio calcolato", value=f"**{guadagno}$**", inline=True)
-    embed.set_footer(text="⏳ In attesa di approvazione da parte dello staff.")
-    view = StipendioApprovaView(interaction.user, guadagno, info_anagrafe, ore, minuti_resto, stipendio_pieno)
-    await interaction.response.send_message(embed=embed, view=view)
-    await log_azione(interaction.guild, interaction.user, "🔴 Fine turno (in attesa)", f"Lavoro: {info_anagrafe['lavoro'].upper()} | Tempo: {ore}h {minuti_resto}min | Guadagno: {guadagno}$", discord.Color.from_rgb(255, 107, 53))
+    embed.add_field(name="💼 Lavoro", value=lavoro.upper(), inline=True)
+    embed.add_field(name="🕐 Entrata", value=ora_inizio.strftime("%H:%M"), inline=True)
+    embed.add_field(name="🕐 Uscita", value=datetime.now().strftime("%H:%M"), inline=True)
+    embed.add_field(name="⏱️ Tempo lavorato", value=f"**{ore}h {minuti_resto}min**", inline=False)
+    embed.set_footer(text="💼 Lo stipendio verrà erogato dallo staff.")
+    await interaction.response.send_message(embed=embed)
+    await log_azione(interaction.guild, interaction.user, "🔴 Uscito dal servizio", f"Lavoro: {lavoro.upper()} | Tempo: {ore}h {minuti_resto}min", discord.Color.from_rgb(255, 107, 53))
 
 @bot.tree.command(name="apri-attivita", description="🟢 Comunica in chat IC che la tua attività è aperta")
 @_blocca_se_dorme()
