@@ -7837,18 +7837,701 @@ def _isla_applica_effetto(uid: int, piatto: str) -> str:
 
 
 class IslaAccettaView(discord.ui.View):
-    """View inviata al cliente via DM per accettare la consegna."""
+    """DM al cliente: accetta o rifiuta il piatto portato al tavolo."""
 
     def __init__(self, cliente_uid: int, piatto: str, cameriere_uid: int,
                  cameriere_nome: str, msg_canale, guild):
-        super().__init__(timeout=300)  # 5 minuti per accettare
-        self.cliente_uid = cliente_uid
-        self.piatto = piatto
-        self.cameriere_uid = cameriere_uid
+        super().__init__(timeout=300)
+        self.cliente_uid    = cliente_uid
+        self.piatto         = piatto
+        self.cameriere_uid  = cameriere_uid
         self.cameriere_nome = cameriere_nome
-        self.msg_canale = msg_canale   # messaggio nel canale ordini da aggiornare
-        self.guild = guild
-        self.accettato = False
+        self.msg_canale     = msg_canale
+        self.guild          = guild
+        self.risposto       = False
+
+    @discord.ui.button(label="✅ ACCETTO IL PIATTO", style=discord.ButtonStyle.success, emoji="🍽️")
+    async def accetta_btn(self, inter: discord.Interaction, button: discord.ui.Button):
+        if inter.user.id != self.cliente_uid:
+            return await inter.response.send_message("❌ Non sei tu il cliente.", ephemeral=True)
+        if self.risposto:
+            return await inter.response.send_message("❌ Hai già risposto.", ephemeral=True)
+        self.risposto = True
+
+        if self.cliente_uid not in inventari:
+            inventari[self.cliente_uid] = []
+        inventari[self.cliente_uid].append(f"🍽️ {self.piatto}")
+        effetto_str = _isla_applica_effetto(self.cliente_uid, self.piatto)
+        _salva_dati()
+
+        for child in self.children:
+            child.disabled = True
+
+        embed_ok = discord.Embed(
+            color=discord.Color.from_rgb(57, 197, 110),
+            title="🍽️ PIATTO RICEVUTO!",
+            timestamp=datetime.now()
+        )
+        embed_ok.set_author(name="Isla de Oro", icon_url=LOGO_SERVER)
+        embed_ok.description = (
+            f"✅ Hai ricevuto **{self.piatto}**!\n"
+            f"**👨‍🍳 Servito da ➢** {self.cameriere_nome}\n\n"
+            + (f"**Effetti:**\n{effetto_str}\n\n" if effetto_str else "")
+            + "*Buon appetito! Buen provecho! 🥂*"
+        )
+        await inter.response.edit_message(embed=embed_ok, view=self)
+
+        # Aggiorna il messaggio nel canale cucina/ordini
+        try:
+            embed_can = discord.Embed(
+                color=discord.Color.from_rgb(57, 197, 110),
+                title="✅ ORDINE COMPLETATO",
+                timestamp=datetime.now()
+            )
+            embed_can.set_author(name="Isla de Oro", icon_url=LOGO_SERVER)
+            embed_can.description = (
+                f"**🍽️ Piatto ➢** {self.piatto}\n"
+                f"**👤 Cliente ➢** <@{self.cliente_uid}>\n"
+                f"**🤵 Cameriere ➢** {self.cameriere_nome}\n\n"
+                f"✅ *Cliente ha accettato il piatto — ordine concluso.*"
+            )
+            await self.msg_canale.edit(embed=embed_can, view=None)
+        except Exception:
+            pass
+
+    @discord.ui.button(label="❌ RIFIUTO", style=discord.ButtonStyle.danger, emoji="❌")
+    async def rifiuta_btn(self, inter: discord.Interaction, button: discord.ui.Button):
+        if inter.user.id != self.cliente_uid:
+            return await inter.response.send_message("❌ Non sei tu il cliente.", ephemeral=True)
+        if self.risposto:
+            return await inter.response.send_message("❌ Hai già risposto.", ephemeral=True)
+        self.risposto = True
+        for child in self.children:
+            child.disabled = True
+        embed_no = discord.Embed(color=discord.Color.red(), title="❌ Piatto Rifiutato", timestamp=datetime.now())
+        embed_no.set_author(name="Isla de Oro", icon_url=LOGO_SERVER)
+        embed_no.description = f"Hai rifiutato **{self.piatto}**.\nContatta il cameriere o lo staff."
+        await inter.response.edit_message(embed=embed_no, view=self)
+        try:
+            embed_can = discord.Embed(color=discord.Color.red(), title="❌ CLIENTE HA RIFIUTATO", timestamp=datetime.now())
+            embed_can.set_author(name="Isla de Oro", icon_url=LOGO_SERVER)
+            embed_can.description = (
+                f"**🍽️ Piatto ➢** {self.piatto}\n"
+                f"**👤 Cliente ➢** <@{self.cliente_uid}>\n\n"
+                f"❌ *Il cliente ha rifiutato il piatto. Contattarlo per chiarimenti.*"
+            )
+            await self.msg_canale.edit(embed=embed_can, view=None)
+        except Exception:
+            pass
+
+    async def on_timeout(self):
+        if not self.risposto:
+            for child in self.children:
+                child.disabled = True
+            try:
+                embed_to = discord.Embed(color=discord.Color.greyple(), title="⏰ Tempo scaduto")
+                embed_to.description = f"Non hai risposto in tempo per **{self.piatto}**.\nContatta il cameriere."
+                await self.message.edit(embed=embed_to, view=self)
+            except Exception:
+                pass
+
+
+class IslaConsegnaView(discord.ui.View):
+    """Messaggio nel canale cucina dopo che il piatto è pronto: il cameriere lo porta al tavolo."""
+
+    def __init__(self, cliente_uid: int, cliente_nome: str, piatto: str, oid: int):
+        super().__init__(timeout=None)
+        self.cliente_uid  = cliente_uid
+        self.cliente_nome = cliente_nome
+        self.piatto       = piatto
+        self.oid          = oid
+        self.consegnato   = False
+
+    @discord.ui.button(label="🤵 Consegna al Tavolo", style=discord.ButtonStyle.success, emoji="🍽️")
+    async def consegna_btn(self, inter: discord.Interaction, button: discord.ui.Button):
+        membro = inter.guild.get_member(inter.user.id) if inter.guild else inter.user
+        ha_ruolo_cam = any(r.id == RUOLO_DIPENDENTE_ISLA_DE_ORO for r in getattr(membro, "roles", []))
+        is_admin = getattr(getattr(membro, "guild_permissions", None), "administrator", False)
+        if not (ha_ruolo_cam or is_admin):
+            return await inter.response.send_message("❌ Solo i camerieri possono consegnare l'ordine.", ephemeral=True)
+        if self.consegnato:
+            return await inter.response.send_message("❌ Ordine già consegnato.", ephemeral=True)
+        self.consegnato = True
+
+        # Rimuovi item dall'inventario cameriere
+        cam_uid  = inter.user.id
+        item_cam = f"🍽️ {self.piatto} [per {self.cliente_nome}]"
+        if cam_uid in inventari and item_cam in inventari[cam_uid]:
+            inventari[cam_uid].remove(item_cam)
+        _salva_dati()
+
+        for child in self.children:
+            child.disabled = True
+
+        embed_attesa = discord.Embed(
+            color=discord.Color.from_rgb(255, 107, 53),
+            title="⏳ IN ATTESA CONFERMA CLIENTE",
+            timestamp=datetime.now()
+        )
+        embed_attesa.set_author(name="Isla de Oro", icon_url=LOGO_SERVER)
+        embed_attesa.description = (
+            f"**🍽️ Piatto ➢** {self.piatto}\n"
+            f"**👤 Cliente ➢** <@{self.cliente_uid}>\n"
+            f"**🤵 Cameriere ➢** {inter.user.mention}\n\n"
+            f"⏳ *Notifica DM inviata al cliente — in attesa che accetti...*"
+        )
+        await inter.response.edit_message(embed=embed_attesa, view=self)
+
+        try:
+            msg_obj = await inter.original_response()
+        except Exception:
+            msg_obj = None
+
+        # DM al cliente
+        cliente_member = inter.guild.get_member(self.cliente_uid) if inter.guild else None
+        if cliente_member:
+            embed_dm = discord.Embed(
+                color=discord.Color.from_rgb(255, 107, 53),
+                title="🍽️ IL TUO ORDINE È AL TAVOLO!",
+                timestamp=datetime.now()
+            )
+            embed_dm.set_author(name="Isla de Oro", icon_url=LOGO_SERVER)
+            embed_dm.set_thumbnail(url=LOGO_SERVER)
+            embed_dm.description = (
+                f"**Il cameriere {inter.user.display_name}** ti ha portato il piatto al tavolo!\n\n"
+                f"**🍽️ Piatto ➢** {self.piatto}\n\n"
+                f"➢ Premi **✅ ACCETTO** per riceverlo nel tuo inventario.\n"
+                f"➢ Premi **❌ RIFIUTO** se c'è un problema.\n\n"
+                f"*Hai 5 minuti per rispondere.*"
+            )
+            embed_dm.set_footer(text=f"Isla de Oro • {datetime.now().strftime('%d/%m/%Y %H:%M')}")
+            accetta_view = IslaAccettaView(
+                cliente_uid=self.cliente_uid,
+                piatto=self.piatto,
+                cameriere_uid=cam_uid,
+                cameriere_nome=inter.user.display_name,
+                msg_canale=msg_obj,
+                guild=inter.guild
+            )
+            try:
+                dm_msg = await cliente_member.send(embed=embed_dm, view=accetta_view)
+                accetta_view.message = dm_msg
+            except discord.Forbidden:
+                # DM chiusi: consegna diretta
+                if self.cliente_uid not in inventari:
+                    inventari[self.cliente_uid] = []
+                inventari[self.cliente_uid].append(f"🍽️ {self.piatto}")
+                _isla_applica_effetto(self.cliente_uid, self.piatto)
+                _salva_dati()
+                await inter.followup.send(
+                    f"⚠️ <@{self.cliente_uid}> ha i DM chiusi. Piatto consegnato direttamente all'inventario.",
+                    ephemeral=True
+                )
+
+
+class IslaCameriereAccettaView(discord.ui.View):
+    """Notifica al cameriere quando il piatto è pronto in cucina: accetta e ritira."""
+
+    def __init__(self, oid: int, piatto: str, cliente_uid: int, cliente_nome: str):
+        super().__init__(timeout=None)
+        self.oid          = oid
+        self.piatto       = piatto
+        self.cliente_uid  = cliente_uid
+        self.cliente_nome = cliente_nome
+        self.ritirato     = False
+
+    @discord.ui.button(label="✅ Accetta & Ritira", style=discord.ButtonStyle.success, emoji="🤵")
+    async def ritira_btn(self, inter: discord.Interaction, button: discord.ui.Button):
+        membro = inter.guild.get_member(inter.user.id) if inter.guild else inter.user
+        ha_ruolo_cam = any(r.id == RUOLO_DIPENDENTE_ISLA_DE_ORO for r in getattr(membro, "roles", []))
+        is_admin = getattr(getattr(membro, "guild_permissions", None), "administrator", False)
+        if not (ha_ruolo_cam or is_admin):
+            return await inter.response.send_message("❌ Solo i camerieri possono ritirare.", ephemeral=True)
+        if self.ritirato:
+            return await inter.response.send_message("❌ Già ritirato da un altro cameriere.", ephemeral=True)
+        self.ritirato = True
+
+        # Aggiunge il piatto all'inventario del cameriere
+        cam_uid  = inter.user.id
+        item_cam = f"🍽️ {self.piatto} [per {self.cliente_nome}]"
+        if cam_uid not in inventari:
+            inventari[cam_uid] = []
+        inventari[cam_uid].append(item_cam)
+
+        # Aggiorna stato ordine in cucina
+        if self.oid in isla_coda_cucina:
+            isla_coda_cucina[self.oid]["stato"]          = "ritirato"
+            isla_coda_cucina[self.oid]["cameriere_uid"]  = cam_uid
+            isla_coda_cucina[self.oid]["cameriere_nome"] = inter.user.display_name
+        _salva_dati()
+
+        for child in self.children:
+            child.disabled = True
+
+        embed_ritirato = discord.Embed(
+            color=discord.Color.from_rgb(255, 107, 53),
+            title="🤵 ORDINE RITIRATO",
+            timestamp=datetime.now()
+        )
+        embed_ritirato.set_author(name="Isla de Oro", icon_url=LOGO_SERVER)
+        embed_ritirato.description = (
+            f"**🍽️ Piatto ➢** {self.piatto}\n"
+            f"**👤 Cliente ➢** <@{self.cliente_uid}>\n"
+            f"**🤵 Cameriere ➢** {inter.user.mention}\n\n"
+            f"📦 *Piatto aggiunto all'inventario del cameriere.*\n"
+            f"➢ Usa il pannello **`/cucina`** per consegnarlo al tavolo."
+        )
+        await inter.response.edit_message(embed=embed_ritirato, view=self)
+
+        # Manda notifica al cameriere con bottone consegna tavolo
+        canale = inter.guild.get_channel(ISLA_CANALE_CUCINA_ID) if inter.guild else None
+        if canale:
+            embed_consegna = discord.Embed(
+                color=discord.Color.from_rgb(255, 180, 0),
+                title="🚶 PORTA IL PIATTO AL TAVOLO",
+                timestamp=datetime.now()
+            )
+            embed_consegna.set_author(name="Isla de Oro", icon_url=LOGO_SERVER)
+            embed_consegna.description = (
+                f"**🍽️ Piatto ➢** {self.piatto}\n"
+                f"**👤 Cliente ➢** <@{self.cliente_uid}>\n"
+                f"**🤵 Cameriere ➢** {inter.user.mention}\n\n"
+                f"*Avvicinati al tavolo del cliente e premi il bottone per consegnarlo.*"
+            )
+            consegna_view = IslaConsegnaView(
+                cliente_uid=self.cliente_uid,
+                cliente_nome=self.cliente_nome,
+                piatto=self.piatto,
+                oid=self.oid
+            )
+            try:
+                await canale.send(
+                    content=inter.user.mention,
+                    embed=embed_consegna,
+                    view=consegna_view
+                )
+            except Exception:
+                pass
+
+
+class IslaConfermaModal(discord.ui.Modal, title="🍽️ Conferma Ordine"):
+    note = discord.ui.TextInput(
+        label="Note per la cucina (opzionale)",
+        style=discord.TextStyle.paragraph,
+        placeholder="Es: senza cipolla, cottura al sangue, allergie...",
+        required=False,
+        max_length=200
+    )
+
+    def __init__(self, uid: int, piatto: str, prezzo: int):
+        super().__init__()
+        self.uid    = uid
+        self.piatto = piatto
+        self.prezzo = prezzo
+
+    async def on_submit(self, inter: discord.Interaction):
+        uid      = inter.user.id
+        piatto   = self.piatto
+        prezzo   = self.prezzo
+        note_txt = self.note.value.strip() or "Nessuna"
+
+        saldo = portafogli.get(uid, 0)
+        if saldo < prezzo:
+            embed = discord.Embed(color=discord.Color.red())
+            embed.set_author(name="⚓ Isla de Oro", icon_url=LOGO_SERVER)
+            embed.description = (
+                f"❌ **Fondi insufficienti!**\n\n"
+                f"**Piatto ➢** {piatto}\n"
+                f"**Prezzo ➢** `${prezzo:,}`\n"
+                f"**Il tuo portafoglio ➢** `${saldo:,}`"
+            )
+            return await inter.response.send_message(embed=embed, ephemeral=True)
+
+        # Scala il prezzo
+        portafogli[uid] -= prezzo
+        portafogli[ISLA_CASSA_UID] = portafogli.get(ISLA_CASSA_UID, 0) + prezzo
+        _registra_transazione(uid, "−", prezzo, f"⚓ Ordine Isla de Oro", piatto)
+        _salva_dati()
+
+        # Crea ordine in cucina
+        oid = _isla_nuovo_ordine_id()
+        isla_coda_cucina[oid] = {
+            "piatto":         piatto,
+            "cliente_uid":    uid,
+            "cliente_nome":   inter.user.display_name,
+            "note":           note_txt,
+            "cameriere_uid":  None,
+            "cameriere_nome": None,
+            "stato":          "in_attesa",
+        }
+        _salva_dati()
+
+        guild = inter.guild
+
+        # Log economia
+        if guild:
+            log_eco = guild.get_channel(CH_LOG_ECONOMIA)
+            if log_eco:
+                log_embed = discord.Embed(color=discord.Color.from_rgb(255, 107, 53), timestamp=datetime.now())
+                log_embed.set_author(name="⚓ Acquisto Isla de Oro", icon_url=LOGO_SERVER)
+                log_embed.description = (
+                    f"**👤 Utente :** <@{uid}>\n"
+                    f"**🍽️ Piatto :** {piatto}\n"
+                    f"**💸 Importo :** `−{prezzo:,} $`\n"
+                    f"**👜 Portafoglio residuo :** `{portafogli.get(uid, 0):,} $`"
+                )
+                log_embed.set_footer(text=f"UserID: {uid}")
+                try:
+                    await log_eco.send(embed=log_embed)
+                except Exception:
+                    pass
+
+        # Conferma al cliente (ephemeral)
+        embed_ok = discord.Embed(
+            color=discord.Color.from_rgb(255, 107, 53),
+            title="⚓ ORDINE CONFERMATO — ISLA DE ORO",
+            timestamp=datetime.now()
+        )
+        embed_ok.set_author(name="Isla de Oro | El Menú de Gala", icon_url=LOGO_SERVER)
+        embed_ok.set_thumbnail(url=LOGO_SERVER)
+        embed_ok.description = (
+            f"✅ Il tuo ordine è stato ricevuto dalla cucina!\n\n"
+            f"**🍽️ Piatto ➢** {piatto}\n"
+            f"**💰 Pagato ➢** `${prezzo:,}`\n"
+            f"**📝 Note ➢** {note_txt}\n\n"
+            f"*Il piatto sarà preparato a breve. Riceverai una notifica quando arriverà al tavolo.* 🥂"
+        )
+        embed_ok.set_footer(
+            text=f"{inter.user.display_name} • {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+            icon_url=inter.user.display_avatar.url
+        )
+        await inter.response.send_message(embed=embed_ok, ephemeral=True)
+
+        # Notifica nel canale cucina — ordine in attesa
+        canale_cucina = guild.get_channel(ISLA_CANALE_CUCINA_ID) if guild else None
+        if canale_cucina:
+            embed_cucina = discord.Embed(
+                color=discord.Color.yellow(),
+                title="🔔 NUOVO ORDINE IN CUCINA",
+                timestamp=datetime.now()
+            )
+            embed_cucina.set_author(name="Isla de Oro — Cucina", icon_url=LOGO_SERVER)
+            embed_cucina.set_thumbnail(url=inter.user.display_avatar.url)
+            embed_cucina.description = (
+                f"**[#{oid}]**\n"
+                f"**🍽️ Piatto ➢** {piatto}\n"
+                f"**👤 Cliente ➢** {inter.user.mention}\n"
+                f"**📝 Note ➢** {note_txt}\n\n"
+                f"*Usa `/cucina` per avviare la cottura.*"
+            )
+            embed_cucina.set_footer(text=f"Stato: ⏳ In attesa di cottura")
+            try:
+                await canale_cucina.send(embed=embed_cucina)
+            except Exception:
+                pass
+
+        asyncio.create_task(log_azione(
+            guild, inter.user,
+            "⚓ Ordine Isla de Oro",
+            f"Piatto: **{piatto}** | ${prezzo:,} | Note: {note_txt}",
+            discord.Color.from_rgb(255, 107, 53)
+        ))
+
+
+class IslaPiattiView(discord.ui.View):
+    def __init__(self, uid: int, cat: str, piatti: list):
+        super().__init__(timeout=120)
+        self.uid = uid
+
+        opzioni = [
+            discord.SelectOption(label=p[:100], value=p, description=f"${ISLA_MENU[p]['prezzo']:,}")
+            for p in piatti[:25]
+        ]
+        sel = discord.ui.Select(placeholder="🍽️ Scegli il piatto...", options=opzioni)
+
+        async def sel_callback(inter: discord.Interaction):
+            if inter.user.id != self.uid:
+                return await inter.response.send_message("❌ Non è il tuo ordine.", ephemeral=True)
+            piatto = sel.values[0]
+            await inter.response.send_modal(IslaConfermaModal(self.uid, piatto, ISLA_MENU[piatto]["prezzo"]))
+
+        sel.callback = sel_callback
+        self.add_item(sel)
+
+        btn_back = discord.ui.Button(label="🔙 Torna al menú", style=discord.ButtonStyle.secondary, row=1)
+
+        async def back_callback(inter: discord.Interaction):
+            if inter.user.id != self.uid:
+                return await inter.response.send_message("❌", ephemeral=True)
+            await inter.response.edit_message(
+                embed=_isla_embed_home(inter.user),
+                view=IslaMenuCategoriaView(self.uid)
+            )
+
+        btn_back.callback = back_callback
+        self.add_item(btn_back)
+
+
+class IslaMenuCategoriaView(discord.ui.View):
+    def __init__(self, uid: int):
+        super().__init__(timeout=120)
+        self.uid = uid
+
+        opzioni = [
+            discord.SelectOption(label=cat[:100], value=cat, emoji="🍽️")
+            for cat in _ISLA_CATEGORIE
+        ]
+        sel = discord.ui.Select(placeholder="⚓ Scegli una sezione del menú...", options=opzioni[:25])
+
+        async def sel_callback(inter: discord.Interaction):
+            if inter.user.id != self.uid:
+                return await inter.response.send_message("❌ Non è il tuo ordine.", ephemeral=True)
+            cat = sel.values[0]
+            piatti = _ISLA_CATEGORIE[cat]
+            await inter.response.edit_message(
+                embed=_isla_embed_categoria(cat, piatti, inter.user),
+                view=IslaPiattiView(self.uid, cat, piatti)
+            )
+
+        sel.callback = sel_callback
+        self.add_item(sel)
+
+
+# ══════════════════════════════════════════════════════════════════
+# 👨‍🍳 CUCINA — Isla de Oro
+# ══════════════════════════════════════════════════════════════════
+
+def _isla_embed_cucina_lista(ordini: dict) -> discord.Embed:
+    embed = discord.Embed(
+        title="👨‍🍳 CUCINA — ISLA DE ORO",
+        color=discord.Color.from_rgb(255, 107, 53),
+        timestamp=datetime.now()
+    )
+    embed.set_author(name="Sistema Cucina Isla de Oro", icon_url=LOGO_SERVER)
+    embed.set_thumbnail(url=LOGO_SERVER)
+
+    def fmt(k, v):
+        cam = f"<@{v['cameriere_uid']}>" if v.get("cameriere_uid") else "—"
+        return f"**[#{k}]** {v['piatto'][:50]} | 👤 {v['cliente_nome']} | 🤵 {cam}"
+
+    in_attesa  = {k: v for k, v in ordini.items() if v["stato"] == "in_attesa"}
+    in_cottura = {k: v for k, v in ordini.items() if v["stato"] == "in_cottura"}
+    pronti     = {k: v for k, v in ordini.items() if v["stato"] == "pronto"}
+    ritirati   = {k: v for k, v in ordini.items() if v["stato"] == "ritirato"}
+
+    if in_attesa:
+        embed.add_field(name=f"⏳ In Attesa ({len(in_attesa)})", value="\n".join(fmt(k, v) for k, v in in_attesa.items()), inline=False)
+    if in_cottura:
+        embed.add_field(name=f"🟡 In Cottura ({len(in_cottura)})", value="\n".join(fmt(k, v) for k, v in in_cottura.items()), inline=False)
+    if pronti:
+        embed.add_field(name=f"🔔 Pronti ({len(pronti)})", value="\n".join(fmt(k, v) for k, v in pronti.items()), inline=False)
+    if ritirati:
+        embed.add_field(name=f"🤵 Ritirati ({len(ritirati)})", value="\n".join(fmt(k, v) for k, v in ritirati.items()), inline=False)
+    if not ordini:
+        embed.description = "✅ *Nessun ordine in coda. La cucina è libera!* 🍽️"
+
+    return embed
+
+
+class IslaCucinaView(discord.ui.View):
+    """Pannello cucina per lo chef."""
+
+    def __init__(self, chef_uid: int):
+        super().__init__(timeout=300)
+        self.chef_uid = chef_uid
+
+    async def _check_chef(self, inter: discord.Interaction) -> bool:
+        membro = inter.guild.get_member(inter.user.id) if inter.guild else inter.user
+        ha_ruolo = any(r.id in (RUOLO_CHEF_ISLA_DE_ORO, RUOLO_DIRETTORE_ISLA_DE_ORO) for r in getattr(membro, "roles", []))
+        is_admin = getattr(getattr(membro, "guild_permissions", None), "administrator", False)
+        if not (ha_ruolo or is_admin):
+            await inter.response.send_message("❌ Solo lo chef può usare questo pannello.", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="🟡 Inizia Cottura", style=discord.ButtonStyle.primary, emoji="🍳", row=0)
+    async def inizia_cottura(self, inter: discord.Interaction, button: discord.ui.Button):
+        if not await self._check_chef(inter):
+            return
+        in_attesa = {k: v for k, v in isla_coda_cucina.items() if v["stato"] == "in_attesa"}
+        if not in_attesa:
+            return await inter.response.send_message("ℹ️ Nessun ordine in attesa.", ephemeral=True)
+        opzioni = [
+            discord.SelectOption(
+                label=f"#{k} — {v['piatto'][:60]}",
+                value=str(k),
+                description=f"Cliente: {v['cliente_nome']} | Note: {(v.get('note') or 'Nessuna')[:40]}"
+            )
+            for k, v in list(in_attesa.items())[:25]
+        ]
+        sel = discord.ui.Select(placeholder="🍳 Quale ordine inizia la cottura?", options=opzioni)
+
+        async def sel_cb(inter2: discord.Interaction):
+            oid = int(sel.values[0])
+            if oid not in isla_coda_cucina:
+                return await inter2.response.send_message("❌ Ordine non trovato.", ephemeral=True)
+            isla_coda_cucina[oid]["stato"]          = "in_cottura"
+            isla_coda_cucina[oid]["inizio_cottura"] = datetime.now().isoformat()
+            piatto = isla_coda_cucina[oid]["piatto"]
+
+            embed_notif = discord.Embed(color=discord.Color.yellow(), title="🍳 COTTURA INIZIATA", timestamp=datetime.now())
+            embed_notif.set_author(name="Cucina Isla de Oro", icon_url=LOGO_SERVER)
+            embed_notif.description = (
+                f"**[#{oid}] {piatto}**\n"
+                f"**👤 Cliente ➢** <@{isla_coda_cucina[oid]['cliente_uid']}>\n"
+                f"**👨‍🍳 Chef ➢** {inter2.user.mention}\n"
+                f"**📝 Note ➢** {isla_coda_cucina[oid].get('note', 'Nessuna')}\n"
+                f"**⏱️ Cottura ➢** 1 minuto"
+            )
+            canale = inter2.guild.get_channel(ISLA_CANALE_CUCINA_ID) if inter2.guild else None
+            if canale:
+                try:
+                    await canale.send(embed=embed_notif)
+                except Exception:
+                    pass
+            await inter2.response.send_message(f"🍳 Cottura avviata per **[#{oid}] {piatto}**! Aspetta 1 minuto.", ephemeral=True)
+            await inter.message.edit(embed=_isla_embed_cucina_lista(isla_coda_cucina), view=IslaCucinaView(self.chef_uid))
+
+        sel.callback = sel_cb
+        v = discord.ui.View(timeout=60)
+        v.add_item(sel)
+        await inter.response.send_message("🍳 Seleziona l'ordine:", view=v, ephemeral=True)
+
+    @discord.ui.button(label="✅ Piatto Pronto", style=discord.ButtonStyle.success, emoji="🔔", row=0)
+    async def piatto_pronto(self, inter: discord.Interaction, button: discord.ui.Button):
+        if not await self._check_chef(inter):
+            return
+        in_cottura = {k: v for k, v in isla_coda_cucina.items() if v["stato"] == "in_cottura"}
+        if not in_cottura:
+            return await inter.response.send_message("ℹ️ Nessun ordine in cottura.", ephemeral=True)
+        opzioni = [
+            discord.SelectOption(label=f"#{k} — {v['piatto'][:60]}", value=str(k), description=f"Cliente: {v['cliente_nome']}")
+            for k, v in list(in_cottura.items())[:25]
+        ]
+        sel = discord.ui.Select(placeholder="✅ Quale piatto è pronto?", options=opzioni)
+
+        async def sel_cb(inter2: discord.Interaction):
+            oid = int(sel.values[0])
+            if oid not in isla_coda_cucina:
+                return await inter2.response.send_message("❌ Ordine non trovato.", ephemeral=True)
+
+            # Controllo timer 1 minuto
+            inizio_str = isla_coda_cucina[oid].get("inizio_cottura")
+            if inizio_str:
+                secondi_passati = (datetime.now() - datetime.fromisoformat(inizio_str)).total_seconds()
+                if secondi_passati < 60:
+                    return await inter2.response.send_message(
+                        f"⏳ Ancora **{int(60 - secondi_passati)} secondi** di cottura!", ephemeral=True
+                    )
+
+            isla_coda_cucina[oid]["stato"] = "pronto"
+            piatto        = isla_coda_cucina[oid]["piatto"]
+            cliente_uid   = isla_coda_cucina[oid]["cliente_uid"]
+            cliente_nome  = isla_coda_cucina[oid]["cliente_nome"]
+            prezzo        = ISLA_MENU.get(piatto, {}).get("prezzo", 0)
+
+            # Pagamento immediato al direttore
+            if inter2.guild and prezzo > 0:
+                ruolo_dir = inter2.guild.get_role(RUOLO_DIRETTORE_ISLA_DE_ORO)
+                if ruolo_dir and ruolo_dir.members:
+                    dir_uid = ruolo_dir.members[0].id
+                    conti_bancari[dir_uid] = conti_bancari.get(dir_uid, 0) + prezzo
+                    _salva_dati()
+
+            # Notifica nel canale cucina con bottone per il cameriere
+            canale = inter2.guild.get_channel(ISLA_CANALE_CUCINA_ID) if inter2.guild else None
+            if canale:
+                embed_pronto = discord.Embed(
+                    color=discord.Color.from_rgb(57, 197, 110),
+                    title="🔔 PIATTO PRONTO — CAMERIERE RITIRA!",
+                    timestamp=datetime.now()
+                )
+                embed_pronto.set_author(name="Cucina Isla de Oro", icon_url=LOGO_SERVER)
+                embed_pronto.description = (
+                    f"**[#{oid}] {piatto}**\n"
+                    f"**👤 Cliente ➢** <@{cliente_uid}>\n"
+                    f"**👨‍🍳 Chef ➢** {inter2.user.mention}\n"
+                    + (f"💰 **Incasso ➢** ${prezzo:,} — accreditati al direttore." if prezzo > 0 else "")
+                )
+                cam_view = IslaCameriereAccettaView(
+                    oid=oid,
+                    piatto=piatto,
+                    cliente_uid=cliente_uid,
+                    cliente_nome=cliente_nome
+                )
+                try:
+                    await canale.send(
+                        content=f"<@&{RUOLO_DIPENDENTE_ISLA_DE_ORO}> 🔔 Piatto pronto da ritirare!",
+                        embed=embed_pronto,
+                        view=cam_view
+                    )
+                except Exception:
+                    pass
+
+            await inter2.response.send_message(
+                f"✅ **[#{oid}] {piatto}** segnato come pronto! Il cameriere è stato avvisato.", ephemeral=True
+            )
+            await inter.message.edit(embed=_isla_embed_cucina_lista(isla_coda_cucina), view=IslaCucinaView(self.chef_uid))
+
+        sel.callback = sel_cb
+        v = discord.ui.View(timeout=60)
+        v.add_item(sel)
+        await inter.response.send_message("✅ Seleziona il piatto pronto:", view=v, ephemeral=True)
+
+    @discord.ui.button(label="🗑️ Rimuovi Ordine", style=discord.ButtonStyle.danger, emoji="🗑️", row=1)
+    async def rimuovi_ordine(self, inter: discord.Interaction, button: discord.ui.Button):
+        if not await self._check_chef(inter):
+            return
+        attivi = {k: v for k, v in isla_coda_cucina.items() if v["stato"] not in ("ritirato",)}
+        if not attivi:
+            return await inter.response.send_message("ℹ️ Nessun ordine attivo.", ephemeral=True)
+        opzioni = [
+            discord.SelectOption(label=f"#{k} — {v['piatto'][:60]}", value=str(k), description=f"Stato: {v['stato']}")
+            for k, v in list(attivi.items())[:25]
+        ]
+        sel = discord.ui.Select(placeholder="🗑️ Quale ordine eliminare?", options=opzioni)
+
+        async def sel_cb(inter2: discord.Interaction):
+            oid = int(sel.values[0])
+            if oid in isla_coda_cucina:
+                piatto = isla_coda_cucina[oid]["piatto"]
+                del isla_coda_cucina[oid]
+                await inter2.response.send_message(f"🗑️ Ordine **[#{oid}] {piatto}** rimosso.", ephemeral=True)
+                await inter.message.edit(embed=_isla_embed_cucina_lista(isla_coda_cucina), view=IslaCucinaView(self.chef_uid))
+            else:
+                await inter2.response.send_message("❌ Ordine non trovato.", ephemeral=True)
+
+        sel.callback = sel_cb
+        v = discord.ui.View(timeout=60)
+        v.add_item(sel)
+        await inter.response.send_message("🗑️ Seleziona l'ordine da eliminare:", view=v, ephemeral=True)
+
+    @discord.ui.button(label="🔄 Aggiorna", style=discord.ButtonStyle.secondary, emoji="🔄", row=1)
+    async def aggiorna(self, inter: discord.Interaction, button: discord.ui.Button):
+        await inter.response.edit_message(embed=_isla_embed_cucina_lista(isla_coda_cucina), view=IslaCucinaView(self.chef_uid))
+
+
+@bot.tree.command(name="cucina", description="👨‍🍳 Pannello cucina Isla de Oro [Solo Chef]")
+async def cucina_cmd(interaction: discord.Interaction):
+    membro  = interaction.guild.get_member(interaction.user.id) if interaction.guild else interaction.user
+    ha_ruolo = any(r.id in (RUOLO_CHEF_ISLA_DE_ORO, RUOLO_DIRETTORE_ISLA_DE_ORO) for r in getattr(membro, "roles", []))
+    is_admin = getattr(getattr(membro, "guild_permissions", None), "administrator", False)
+    if not (ha_ruolo or is_admin):
+        return await interaction.response.send_message("❌ Solo lo chef può accedere al pannello cucina.", ephemeral=True)
+    embed = _isla_embed_cucina_lista(isla_coda_cucina)
+    view  = IslaCucinaView(interaction.user.id)
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+
+@bot.tree.command(name="isla-de-oro", description="⚓ Apri il menú del ristorante Isla de Oro")
+@_blocca_se_dorme()
+async def isla_de_oro(interaction: discord.Interaction):
+    embed = _isla_embed_home(interaction.user)
+    await interaction.response.send_message(
+        embed=embed,
+        view=IslaMenuCategoriaView(interaction.user.id),
+        ephemeral=True
+    )
 
     @discord.ui.button(label="✅ ACCETTO IL PIATTO", style=discord.ButtonStyle.success, emoji="🍽️")
     async def accetta_btn(self, inter: discord.Interaction, button: discord.ui.Button):
