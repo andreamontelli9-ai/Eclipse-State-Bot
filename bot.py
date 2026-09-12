@@ -9244,33 +9244,7 @@ class IslaCucinaOrdineManuale(discord.ui.Modal, title="📋 Aggiungi Ordine Manu
         )
 
 
-@bot.tree.command(name="cucina", description="👨‍🍳 Pannello cucina Isla de Oro — gestisci gli ordini [Solo Chef/Staff]")
-async def cucina_cmd(interaction: discord.Interaction):
-    membro = interaction.guild.get_member(interaction.user.id) if interaction.guild else interaction.user
-    ha_ruolo = any(
-        r.id in (ISLA_RUOLO_CHEF, RUOLO_DIPENDENTE_ISLA_DE_ORO, RUOLO_SICUREZZA_ISLA_DE_ORO)
-        for r in getattr(membro, "roles", [])
-    )
-    is_admin = getattr(getattr(membro, "guild_permissions", None), "administrator", False)
-    if not (ha_ruolo or is_admin):
-        return await interaction.response.send_message(
-            "❌ Solo lo chef e lo staff dell'Isla de Oro possono accedere al pannello cucina.",
-            ephemeral=True
-        )
-    embed = _isla_embed_cucina_lista(isla_coda_cucina)
-    view  = IslaCucinaView(interaction.user.id)
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
-
-@bot.tree.command(name="isla-de-oro", description="⚓ Apri il menú del ristorante Isla de Oro")
-@_blocca_se_dorme()
-async def isla_de_oro(interaction: discord.Interaction):
-    embed = _isla_embed_home(interaction.user)
-    await interaction.response.send_message(
-        embed=embed,
-        view=IslaMenuCategoriaView(interaction.user.id),
-        ephemeral=True
-    )
 
 
 # ══════════════════════════════════════════════════════════════════
