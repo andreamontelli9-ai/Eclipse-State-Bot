@@ -10453,6 +10453,9 @@ async def on_ready():
     if not pagamento_rate_task.is_running():
         pagamento_rate_task.start()
         print("💳 Pagamento rate finanziamenti attivo: ogni 7 giorni.")
+    if not meteo_giornaliero_task.is_running():
+        meteo_giornaliero_task.start()
+        print("🌤️ Sistema meteo stagionale attivo: bollettino ogni 24h, stagione ogni 15 giorni.")
 
     bot.add_view(ViewSondaggioPulsanti())
     bot.add_view(ViewPannelloBg())
@@ -10656,6 +10659,208 @@ async def revoca_contratto_cmd(interaction: discord.Interaction, intestatario: s
     await interaction.response.send_message("✅ Contratto revocato e pubblicato nel canale.", ephemeral=True)
 
 bot.tree.add_command(dynasty8_group)
+
+
+# ══════════════════════════════════════════════════════════════════
+# 🌤️  SISTEMA STAGIONALE AUTOMATICO — Meteo giornaliero + cambio stagione
+# ══════════════════════════════════════════════════════════════════
+
+CANALE_METEO_ID = 1548351022303547452  # Canale dove vengono inviate le previsioni
+
+# Data di riferimento per calcolare la stagione corrente (inizio ciclo)
+# Ogni 15 giorni cambia stagione: Estate → Autunno → Inverno → Primavera → ...
+import math
+
+# Configurazione stagioni
+STAGIONI = [
+    {
+        "nome": "Estate",
+        "emoji": "☀️",
+        "colore": 0xFFD700,
+        "banner": "🌴🏖️🌊",
+        "descrizione": "Il sole splende forte su Eclipse City. Le strade sono calde e la città è viva!",
+        "temp_min": 28,
+        "temp_max": 38,
+        "meteo_possibili": [
+            {"tipo": "☀️ Soleggiato",   "prob": 50, "mod_min": +2,  "mod_max": +4},
+            {"tipo": "⛅ Parzialmente nuvoloso", "prob": 25, "mod_min": 0, "mod_max": +1},
+            {"tipo": "🌩️ Temporale estivo",     "prob": 15, "mod_min": -5, "mod_max": -2},
+            {"tipo": "💨 Vento caldo",           "prob": 10, "mod_min": +1, "mod_max": +3},
+        ],
+    },
+    {
+        "nome": "Autunno",
+        "emoji": "🍂",
+        "colore": 0xD2691E,
+        "banner": "🍁🌧️🍃",
+        "descrizione": "Le foglie colorano Eclipse City di arancione e rosso. L'aria si fa più fresca.",
+        "temp_min": 12,
+        "temp_max": 22,
+        "meteo_possibili": [
+            {"tipo": "🌧️ Pioggia",              "prob": 35, "mod_min": -3, "mod_max": 0},
+            {"tipo": "⛅ Nuvoloso",              "prob": 30, "mod_min": -1, "mod_max": +1},
+            {"tipo": "☀️ Schiarite",             "prob": 20, "mod_min": +1, "mod_max": +3},
+            {"tipo": "🌫️ Nebbia mattutina",      "prob": 15, "mod_min": -2, "mod_max": 0},
+        ],
+    },
+    {
+        "nome": "Inverno",
+        "emoji": "❄️",
+        "colore": 0x87CEEB,
+        "banner": "🌨️⛄🌬️",
+        "descrizione": "L'inverno stringe Eclipse City nel suo abbraccio gelido. Attenzione al ghiaccio!",
+        "temp_min": -2,
+        "temp_max": 8,
+        "meteo_possibili": [
+            {"tipo": "🌨️ Neve",                 "prob": 30, "mod_min": -4, "mod_max": -1},
+            {"tipo": "🌬️ Vento gelido",          "prob": 25, "mod_min": -3, "mod_max": -1},
+            {"tipo": "☁️ Cielo coperto",         "prob": 30, "mod_min": -1, "mod_max": +1},
+            {"tipo": "🌤️ Sole invernale",        "prob": 15, "mod_min": +1, "mod_max": +3},
+        ],
+    },
+    {
+        "nome": "Primavera",
+        "emoji": "🌸",
+        "colore": 0x90EE90,
+        "banner": "🌺🌱🌈",
+        "descrizione": "Eclipse City si risveglia! I fiori sbocciano e l'aria è fresca e profumata.",
+        "temp_min": 14,
+        "temp_max": 24,
+        "meteo_possibili": [
+            {"tipo": "🌦️ Sole e pioggia",        "prob": 30, "mod_min": -2, "mod_max": +2},
+            {"tipo": "☀️ Soleggiato",            "prob": 30, "mod_min": +1, "mod_max": +3},
+            {"tipo": "🌸 Fresco e ventilato",    "prob": 25, "mod_min": -1, "mod_max": +1},
+            {"tipo": "🌈 Dopo la pioggia",       "prob": 15, "mod_min": 0,  "mod_max": +2},
+        ],
+    },
+]
+
+# Stato persistente stagione (in memoria, si resetta al riavvio partendo da estate)
+_stagione_corrente_idx: int = 0  # indice nella lista STAGIONI
+_stagione_inizio: datetime = datetime.now()
+
+def _get_stagione_corrente() -> dict:
+    """Restituisce la stagione corrente in base al contatore giorni dall'avvio."""
+    global _stagione_corrente_idx
+    giorni_trascorsi = (datetime.now() - _stagione_inizio).days
+    idx = (giorni_trascorsi // 15) % len(STAGIONI)
+    return STAGIONI[idx], idx
+
+def _genera_meteo(stagione: dict) -> tuple[str, int]:
+    """Genera meteo casuale della giornata in base alla stagione."""
+    r = random.randint(1, 100)
+    cumulativo = 0
+    for meteo in stagione["meteo_possibili"]:
+        cumulativo += meteo["prob"]
+        if r <= cumulativo:
+            temp_base = random.randint(stagione["temp_min"], stagione["temp_max"])
+            mod = random.randint(meteo["mod_min"], meteo["mod_max"])
+            temp_finale = temp_base + mod
+            return meteo["tipo"], temp_finale
+    # fallback
+    return stagione["meteo_possibili"][0]["tipo"], stagione["temp_min"]
+
+def _build_meteo_embed(stagione: dict, meteo_tipo: str, temperatura: int, cambio: bool = False) -> discord.Embed:
+    """Costruisce l'embed grafico per il meteo giornaliero."""
+    ora_attuale = datetime.now().strftime("%d/%m/%Y")
+
+    # Barra temperatura visiva
+    temp_norm = max(0, min(temperatura + 10, 50))  # normalizza da -10 a 50
+    blocchi = round((temp_norm / 50) * 10)
+    if temperatura <= 0:
+        colore_barra = "🔵"
+    elif temperatura <= 15:
+        colore_barra = "🟦"
+    elif temperatura <= 25:
+        colore_barra = "🟩"
+    elif temperatura <= 32:
+        colore_barra = "🟨"
+    else:
+        colore_barra = "🟥"
+    barra_temp = colore_barra * blocchi + "⬛" * (10 - blocchi)
+
+    # Consiglio abbigliamento
+    if temperatura <= 0:
+        consiglio = "🧥 Cappotto pesante, guanti e sciarpa — è gelido!"
+    elif temperatura <= 10:
+        consiglio = "🧣 Giubbotto e stivali — fa freddo fuori!"
+    elif temperatura <= 18:
+        consiglio = "👕 Felpa leggera — temperatura mite."
+    elif temperatura <= 27:
+        consiglio = "👕 Abbigliamento leggero — temperatura piacevole!"
+    else:
+        consiglio = "🩴 Abiti leggeri — caldo intenso! Idratati!"
+
+    embed = discord.Embed(
+        color=stagione["colore"],
+        timestamp=datetime.now()
+    )
+
+    titolo = f"📅 **BOLLETTINO METEO — {ora_attuale}**"
+    if cambio:
+        titolo = f"🔄 **CAMBIO STAGIONE + BOLLETTINO METEO — {ora_attuale}**"
+
+    embed.description = (
+        f"{titolo}\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"{stagione['emoji']} **STAGIONE ATTIVA: {stagione['nome'].upper()}**\n"
+        f"{stagione['banner']}\n"
+        f"*{stagione['descrizione']}*\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"🌡️ **TEMPERATURA ODIERNA**\n"
+        f"╔══════════════════════╗\n"
+        f"║  {temperatura:+d}°C — {meteo_tipo}\n"
+        f"╚══════════════════════╝\n"
+        f"**Scala:** ❄️ `{barra_temp}` 🔥\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        f"👗 **Consiglio del giorno:**\n"
+        f"➢ {consiglio}\n\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    )
+
+    if cambio:
+        nuova_stagione = STAGIONI[STAGIONI.index(stagione)]
+        embed.add_field(
+            name="🔄 Nuova Stagione Iniziata!",
+            value=(
+                f"La città entra nell'{stagione['emoji']} **{stagione['nome']}**!\n"
+                f"*Preparati per il cambio climatico di Eclipse City.*"
+            ),
+            inline=False
+        )
+
+    embed.set_author(name="🌤️ Eclipse City RP — Servizio Meteo", icon_url=LOGO_SERVER)
+    embed.set_footer(
+        text="📡 Aggiornamento automatico ogni 24h • Stagione cambia ogni 15 giorni",
+    )
+    return embed
+
+
+@tasks.loop(hours=24)
+async def meteo_giornaliero_task():
+    """Ogni 24 ore invia il bollettino meteo nel canale dedicato."""
+    await bot.wait_until_ready()
+    canale = bot.get_channel(CANALE_METEO_ID)
+    if canale is None:
+        print(f"⚠️ Canale meteo {CANALE_METEO_ID} non trovato!")
+        return
+
+    stagione, idx = _get_stagione_corrente()
+    giorni_trascorsi = (datetime.now() - _stagione_inizio).days
+    # Controlla se oggi è un giorno di cambio stagione (ogni 15 giorni)
+    cambio_stagione = (giorni_trascorsi > 0 and giorni_trascorsi % 15 == 0)
+
+    meteo_tipo, temperatura = _genera_meteo(stagione)
+    embed = _build_meteo_embed(stagione, meteo_tipo, temperatura, cambio=cambio_stagione)
+
+    try:
+        await canale.send(embed=embed)
+        if cambio_stagione:
+            print(f"🔄 Cambio stagione → {stagione['nome']} | Temperatura: {temperatura}°C")
+        else:
+            print(f"☁️ Meteo inviato: {stagione['nome']} | {meteo_tipo} | {temperatura}°C")
+    except Exception as e:
+        print(f"⚠️ Errore invio meteo: {e}")
 
 
 # --- AVVIO DEL BOT ---
