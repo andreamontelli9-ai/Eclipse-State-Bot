@@ -10863,14 +10863,6 @@ async def meteo_giornaliero_task():
         print(f"⚠️ Errore invio meteo: {e}")
 
 
-# --- AVVIO DEL BOT ---
-if not TOKEN:
-    raise RuntimeError(
-        "❌ Token Discord non trovato. Imposta la variabile d'ambiente DISCORD_TOKEN "
-        "(o creane una in un file .env) prima di avviare il bot."
-    )
-
-bot.run(TOKEN)
 
 # ══════════════════════════════════════════════════════════════
 # 🚨  SISTEMA CHIAMATA-911
@@ -11035,3 +11027,12 @@ async def pannello_911(interaction: discord.Interaction):
     )
     await interaction.channel.send(embed=embed, view=Chiamata911View())
     await interaction.response.send_message("✅ Pannello 911 pubblicato con successo.", ephemeral=True)
+
+# --- AVVIO DEL BOT ---
+if not TOKEN:
+    raise RuntimeError(
+        "❌ Token Discord non trovato. Imposta la variabile d'ambiente DISCORD_TOKEN "
+        "(o creane una in un file .env) prima di avviare il bot."
+    )
+
+bot.run(TOKEN)
