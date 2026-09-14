@@ -10871,3 +10871,167 @@ if not TOKEN:
     )
 
 bot.run(TOKEN)
+
+# ══════════════════════════════════════════════════════════════
+# 🚨  SISTEMA CHIAMATA-911
+# Pannello embed con bottoni POLIZIA (ECPD) e MEDICI (EMS).
+# Al click → crea VOC privata (solo l'operatore del ruolo la vede),
+# durata 5 minuti, poi si auto-elimina. Nessun player viene spostato.
+# ══════════════════════════════════════════════════════════════
+
+# ── Config 911 (modifica questi ID) ──────────────────────────
+CATEGORIA_911_ID: int = 0        # ← ID categoria per i VOC di emergenza
+RUOLO_911_POLIZIA_ID: int = 1532126720990117978
+RUOLO_911_MEDICI_ID:  int = 1532126619853127690
+BANNER_911_URL = "https://media.discordapp.net/attachments/1545774879716942005/1548636923340259378/eclipse_city_911.jpg"
+VOC_911_DURATA = 300             # 5 minuti in secondi
+# ─────────────────────────────────────────────────────────────
+
+
+async def _crea_voc_911(guild: discord.Guild, tipo: str, chiamante_id: int) -> discord.VoiceChannel:
+    """Crea una VOC temporanea visibile solo agli operatori del tipo scelto."""
+    ruolo_id = RUOLO_911_POLIZIA_ID if tipo == "POLIZIA" else RUOLO_911_MEDICI_ID
+    ruolo_op = guild.get_role(ruolo_id)
+    nome_canale = "🚔│polizia-911" if tipo == "POLIZIA" else "🚑│medici-911"
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(view_channel=False, connect=False),
+        guild.me: discord.PermissionOverwrite(view_channel=True, connect=True, manage_channels=True),
+    }
+    if ruolo_op:
+        overwrites[ruolo_op] = discord.PermissionOverwrite(
+            view_channel=True, connect=True, speak=True
+        )
+    categoria = guild.get_channel(CATEGORIA_911_ID) if CATEGORIA_911_ID else None
+    voc = await guild.create_voice_channel(
+        name=nome_canale,
+        category=categoria,
+        overwrites=overwrites,
+        reason=f"Chiamata 911 — {tipo} — chiamante ID {chiamante_id}",
+    )
+    async def _elimina_voc():
+        await asyncio.sleep(VOC_911_DURATA)
+        try:
+            await voc.delete(reason="Chiamata 911 scaduta (5 min)")
+        except Exception:
+            pass
+    asyncio.create_task(_elimina_voc())
+    return voc
+
+
+class Chiamata911View(discord.ui.View):
+    """Bottoni POLIZIA e MEDICI del pannello 911."""
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    async def _gestisci_click(self, interaction: discord.Interaction, tipo: str):
+        await interaction.response.defer(ephemeral=True)
+        try:
+            voc = await _crea_voc_911(interaction.guild, tipo, interaction.user.id)
+        except Exception as e:
+            print(f"[911] Errore creazione VOC: {e}")
+            return await interaction.followup.send(
+                "❌ Errore nella creazione del canale vocale. Controlla i permessi del bot.",
+                ephemeral=True
+            )
+        colore = discord.Color.from_rgb(21, 101, 192) if tipo == "POLIZIA" else discord.Color.red()
+        emoji  = "🚔" if tipo == "POLIZIA" else "🚑"
+        label  = "POLIZIA (ECPD)" if tipo == "POLIZIA" else "MEDICI (EMS)"
+        embed_ok = discord.Embed(color=colore, timestamp=datetime.now())
+        embed_ok.description = (
+            f"{emoji} | **CHIAMATA {label} ATTIVATA!**\n\n"
+            f"**Canale VOC ➢** {voc.mention}\n"
+            f"**Durata ➢** 5 minuti\n"
+            f"**Chiamante ➢** {interaction.user.mention}\n\n"
+            f"➢ *Nessun player è stato spostato — unisciti manualmente al canale.*\n"
+            f"➢ *Il canale si elimina automaticamente dopo 5 minuti.*"
+        )
+        embed_ok.set_footer(text=f"{datetime.now().strftime('%d/%m/%Y %H:%M')}")
+        await interaction.followup.send(embed=embed_ok, ephemeral=True)
+        try:
+            embed_orig = discord.Embed.from_dict(interaction.message.embeds[0].to_dict())
+            embed_orig.add_field(
+                name=f"{emoji} Risposta",
+                value=f"<@{interaction.user.id}> ha risposto come **{label}** → {voc.mention}",
+                inline=False
+            )
+            await interaction.message.edit(embeds=[embed_orig], view=None)
+        except Exception:
+            pass
+        await log_staff(
+            interaction.guild,
+            f"🚨 {interaction.user.mention} ha risposto alla chiamata 911 come **{label}** → {voc.mention}",
+            discord.Color.red()
+        )
+
+    @discord.ui.button(
+        label="  POLIZIA ( ECPD )",
+        emoji="🚔",
+        style=discord.ButtonStyle.primary,
+        custom_id="chiamata911_polizia"
+    )
+    async def btn_polizia(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._gestisci_click(interaction, "POLIZIA")
+
+    @discord.ui.button(
+        label="  MEDICI (EMS)",
+        emoji="🚑",
+        style=discord.ButtonStyle.danger,
+        custom_id="chiamata911_medici"
+    )
+    async def btn_medici(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self._gestisci_click(interaction, "MEDICI")
+
+
+@bot.tree.command(name="911", description="🚨 Pannello chiamata d'emergenza — POLIZIA o MEDICI")
+@app_commands.describe(
+    situazione="Descrivi brevemente la situazione di emergenza",
+    posizione="Dove sei? (es. Los Santos, Davis, Route 68...)"
+)
+async def chiamata_911(
+    interaction: discord.Interaction,
+    situazione: str,
+    posizione: str = "Non specificata"
+):
+    embed = discord.Embed(color=discord.Color.from_rgb(180, 0, 0))
+    embed.set_author(name="🚨  CHIAMATA-911 📟", icon_url=LOGO_SERVER)
+    embed.description = (
+        "📱  **SELEZIONA LA F.D.O. DI CUI HAI BISOGNO E UN OPERATORE SI\n"
+        "COLLEGHERÀ DIRETTAMENTE NELLA SEGUENTE CHIAMATA D'EMERGENZA! TIENI\n"
+        "DURO UN'UNITÀ SARÀ SUBITO DA TE** ⚠️"
+    )
+    embed.set_image(url=BANNER_911_URL)
+    embed.add_field(name="📋  Situazione", value=situazione, inline=False)
+    embed.add_field(name="📍  Posizione",  value=posizione,  inline=True)
+    embed.add_field(name="📞  Chiamante",  value=interaction.user.mention, inline=True)
+    embed.set_footer(
+        text=f"Eclipse City RP  •  {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        icon_url=LOGO_SERVER
+    )
+    await interaction.response.send_message(embed=embed, view=Chiamata911View())
+    await log_azione(
+        interaction.guild, interaction.user,
+        "🚨 Chiamata 911",
+        f"Situazione: {situazione[:80]} | Posizione: {posizione}",
+        discord.Color.red(),
+        canale_origine=interaction.channel
+    )
+
+
+@bot.tree.command(name="pannello-911", description="🚨 Pubblica il pannello 911 fisso nel canale (Solo Staff)")
+@is_staff_or_direttore()
+async def pannello_911(interaction: discord.Interaction):
+    """Invia il pannello 911 persistente nel canale corrente."""
+    embed = discord.Embed(color=discord.Color.from_rgb(180, 0, 0))
+    embed.set_author(name="🚨  CHIAMATA-911 📟", icon_url=LOGO_SERVER)
+    embed.description = (
+        "📱  **SELEZIONA LA F.D.O. DI CUI HAI BISOGNO E UN OPERATORE SI\n"
+        "COLLEGHERÀ DIRETTAMENTE NELLA SEGUENTE CHIAMATA D'EMERGENZA! TIENI\n"
+        "DURO UN'UNITÀ SARÀ SUBITO DA TE** ⚠️"
+    )
+    embed.set_image(url=BANNER_911_URL)
+    embed.set_footer(
+        text="Eclipse City RP  •  Sistema di emergenza",
+        icon_url=LOGO_SERVER
+    )
+    await interaction.channel.send(embed=embed, view=Chiamata911View())
+    await interaction.response.send_message("✅ Pannello 911 pubblicato con successo.", ephemeral=True)
