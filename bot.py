@@ -28,6 +28,16 @@ TOKEN = os.environ.get("DISCORD_TOKEN")
 DEVELOPER_ID = 1275101244423405621
 
 # ═══════════════════════════════════════════
+# 🌐 ID SERVER PER SINCRONIZZAZIONE COMANDI
+# Aggiungi qui tutti i server in cui vuoi
+# che i comandi slash siano disponibili.
+# ═══════════════════════════════════════════
+GUILD_IDS = [
+    1532126411640868934,   # ← Server principale (Eclipse City RP) — modifica se necessario
+    1538462513312563323,   # ← Server secondario
+]
+
+# ═══════════════════════════════════════════
 # 💼 ID DIRETTORI PER LOCALE
 # ═══════════════════════════════════════════
 DIRETTORI_LOCALI = {
@@ -10439,11 +10449,25 @@ async def on_voice_state_update(member, before, after):
 @bot.event
 async def on_ready():
     print(f"🔥 MASTER BOT RP ONLINE — Caricamento completato! 🚀")
+
+    # ── Sincronizzazione comandi per guild specifici (istantanea) ──
+    for gid in GUILD_IDS:
+        guild_obj = discord.Object(id=gid)
+        try:
+            bot.tree.copy_global_to(guild=guild_obj)
+            sincronizzati = await bot.tree.sync(guild=guild_obj)
+            print(f"⚡ [{gid}] Sincronizzati {len(sincronizzati)} comandi slash nel server.")
+        except discord.Forbidden:
+            print(f"⚠️ [{gid}] Permesso negato — il bot non ha accesso a quel server o mancano i permessi.")
+        except Exception as e:
+            print(f"❌ [{gid}] Errore di sincronizzazione: {e}")
+
+    # ── Sync globale (propagazione lenta ~1h, fallback) ──
     try:
-        sincronizzati = await bot.tree.sync()
-        print(f"⚡ Sincronizzati {len(sincronizzati)} comandi slash con successo!")
+        sincronizzati_globali = await bot.tree.sync()
+        print(f"🌐 Sync globale: {len(sincronizzati_globali)} comandi registrati (propagazione ~1h).")
     except Exception as e:
-        print(f"❌ Errore di sincronizzazione: {e}")
+        print(f"❌ Errore sync globale: {e}")
     if not autosave_task.is_running():
         autosave_task.start()
         print("💾 Autosave attivo: i dati vengono salvati ogni 20 secondi.")
