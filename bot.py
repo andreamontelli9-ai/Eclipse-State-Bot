@@ -11054,12 +11054,625 @@ async def pannello_911(interaction: discord.Interaction):
 
 # ══════════════════════════════════════════════════════════════
 # 🎨  COMANDO ,riempi  —  Riempie tutti i canali del server
-# Uso: ,riempi          → riempie tutti i canali di testo
+# Usa messaggi in testo nativo Discord (bold/italic/emoji/linee)
+# proprio come i messaggi manuali del server.
 # Solo Admin / DEVELOPER_ID
 # ══════════════════════════════════════════════════════════════
 
-# Dizionario: parole chiave nel nome canale → contenuto personalizzato
-# Ogni entry: (titolo_embed, descrizione, colore, emoji_header)
+_SEP = "ㅤ\n▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬\nㅤ"
+_SEP_THIN = "────────────────────────────────────"
+
+# Ogni entry: stringa di testo formattato in stile Discord nativo
+_RIEMPI_TESTI: dict[str, str] = {
+
+    # ── BENVENUTO ─────────────────────────────────────────────
+    "benvenuto": (
+        "**🌆 ECLIPSE CITY**\n"
+        f"{_SEP}\n"
+        "📌 *Eclipse City è un server Roleplay ambientato nella città di Los Angeles, una metropoli moderna dove legalità e criminalità convivono in un equilibrio in costante evoluzione.*\n"
+        "*Le istituzioni operano per garantire ordine e sicurezza, mentre aziende, attività commerciali e cittadini contribuiscono alla crescita della città.*\n"
+        "*Parallelamente, organizzazioni criminali e gruppi illegali agiscono nell'ombra, influenzando gli equilibri della metropoli.*\n\n"
+        "🏙️ *Eclipse City Roleplay offre un'esperienza di gioco diversa dal solito, grazie a sistemi bot personalizzati e studiati al meglio per garantire un elevato realismo.*\n\n"
+        "👤 *I player sono stanchi di sentir dire che nei server non ci sono fail, per poi trovarseli regolarmente di fronte.*\n\n"
+        "☝️ *Qui, invece, è impossibile, poiché abbiamo uno staff attivo h24 che controlla che nelle sessioni ci siano tranquillità e un Roleplay corretto perché qui il rispetto delle regole, il realismo e la qualità del Roleplay rappresentano i valori fondamentali di Eclipse City.*\n\n"
+        "📲 *Inoltre qui esiste un sistema database su sito web per la polizia e un server personalizzato per tutte le Forze Dell'Ordine, dai medici ai Navy.*\n\n"
+        "**👾  Entra ora e gioca!**\n\n"
+        "👀 *E ricorda che in Eclipse City:*\n"
+        "> ✦ *La tua storia la scrivi tu.*\n"
+        "> ✦ *Ogni scelta ha conseguenze reali.*\n"
+        "> ✦ *Il roleplay è il cuore della città.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Benvenuto su Eclipse City !*"
+    ),
+
+    # ── KIT BENVENUTO ─────────────────────────────────────────
+    "kit": (
+        "🎁 **KIT DI BENVENUTO** 🎁\n"
+        f"{_SEP}\n"
+        "**—ㅤ〖 Cosa Riceverai 〗 ❓ —**\n\n"
+        "👉 *Caro @ 〖🏆〗 Cittadino Di Eclipse City® , la città mette a disposizione un kit di benvenuto con tutto il necessario per muovere i primi passi.* 🏙️\n\n"
+        "> 💳 *$15.000 accreditati sul conto bancario.*\n\n"
+        "> 💵 *$100 in contanti*\n\n"
+        "> 🚲 *1 Bicicletta personale per i tuoi primi spostamenti*\n\n"
+        "✦ **Sfrutta al meglio il tuo kit, trova la tua strada e inizia a scrivere la storia** 🔥\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Benvenuto su Eclipse City !*"
+    ),
+
+    # ── REGOLAMENTO ───────────────────────────────────────────
+    "regol": (
+        "⚖️ **REGOLAMENTO — ECLIPSE CITY RP**\n"
+        f"{_SEP}\n"
+        "📌 *Leggi con attenzione ogni punto. L'ignoranza delle regole non è una scusa valida.*\n\n"
+        "**—ㅤ〖 Regole Generali 〗—**\n\n"
+        "> **§1 — Rispetto**\n"
+        "> *Ogni giocatore merita rispetto. Insulti, discriminazioni o comportamenti tossici sono vietati.*\n\n"
+        "> **§2 — Roleplay Realistico**\n"
+        "> *Evita azioni irrealistiche: No Fear RP, Power Gaming, Meta Gaming e God Mode sono strettamente vietati.*\n\n"
+        "> **§3 — No OOC in gioco**\n"
+        "> *Tieni separata la vita reale dal gioco. Non usare informazioni esterne al RP (Meta Gaming).*\n\n"
+        "> **§4 — Rispetta le FDO**\n"
+        "> *Le Forze dell'Ordine svolgono un lavoro fondamentale. Rispetta sempre le procedure.*\n\n"
+        "> **§5 — Segnalazioni**\n"
+        "> *Usa i canali dedicati per segnalare infrazioni. Non fare giustizia da solo.*\n\n"
+        "> **§6 — Decisioni Staff**\n"
+        "> *Le decisioni dello Staff sono definitive e vanno rispettate in ogni circostanza.*\n\n"
+        "⚠️ *La violazione ripetuta del regolamento comporta sanzioni fino al ban permanente.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Eclipse City RP — Rispetto, Realismo, Roleplay.*"
+    ),
+
+    # ── ANNUNCI ───────────────────────────────────────────────
+    "annunci": (
+        "📢 **ANNUNCI UFFICIALI — ECLIPSE CITY RP**\n"
+        f"{_SEP}\n"
+        "📌 *Questo canale è riservato esclusivamente agli annunci ufficiali del server.*\n\n"
+        "> 🔒 *Solo lo **Staff** può pubblicare in questo canale.*\n"
+        "> 🔔 *Attiva le notifiche per non perdere nessun aggiornamento.*\n"
+        "> 💬 *Per domande o chiarimenti usa il canale di supporto.*\n\n"
+        "✦ *Ogni annuncio è importante — leggilo sempre con attenzione.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Eclipse City RP — Staff Ufficiale.*"
+    ),
+
+    # ── NEWS ──────────────────────────────────────────────────
+    "news": (
+        "🗞️ **NEWS — ECLIPSE CITY RP**\n"
+        f"{_SEP}\n"
+        "📌 *Tutte le novità, aggiornamenti e comunicazioni ufficiali del server.*\n\n"
+        "> 🔄 *Aggiornamenti di gioco e nuove feature*\n"
+        "> 🎉 *Annunci di eventi e sessioni speciali*\n"
+        "> 📋 *Cambiamenti al regolamento e alle regole*\n"
+        "> 🏆 *Risultati e classifiche della community*\n\n"
+        "✦ *Resta sempre aggiornato su tutto ciò che accade a Eclipse City!*\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Eclipse City RP — Sempre aggiornato.*"
+    ),
+
+    # ── INFO ──────────────────────────────────────────────────
+    "info": (
+        "ℹ️ **INFORMAZIONI — ECLIPSE CITY RP**\n"
+        f"{_SEP}\n"
+        "📌 *Eclipse City Roleplay — Server FiveM italiano ad alto livello.*\n\n"
+        "**—ㅤ〖 Cosa Offriamo 〗—**\n\n"
+        "> 💰 *Economia realistica con lavori legali e illegali*\n"
+        "> ⚖️ *Sistema giudiziario attivo (Avvocati, Giudici, FBI)*\n"
+        "> 🚔 *Forze dell'Ordine strutturate (MSPD, EMS, MSFD, Navy)*\n"
+        "> 🔫 *Attività criminali e organizzazioni*\n"
+        "> 🏠 *Immobili, veicoli, garage e molto altro*\n"
+        "> 🤖 *Bot personalizzati per un roleplay immersivo*\n\n"
+        "✦ *Entra nella città. Vivi la tua storia.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Eclipse City RP — La tua storia inizia qui.*"
+    ),
+
+    # ── WHITELIST ─────────────────────────────────────────────
+    "whitelist": (
+        "📋 **WHITELIST — ECLIPSE CITY RP**\n"
+        f"{_SEP}\n"
+        "📌 *Per accedere al server FiveM è necessario superare la whitelist.*\n\n"
+        "**—ㅤ〖 Procedura 〗—**\n\n"
+        "> **1️⃣** *Leggi il regolamento completo*\n"
+        "> **2️⃣** *Compila il modulo di candidatura*\n"
+        "> **3️⃣** *Attendi la revisione dello Staff*\n"
+        "> **4️⃣** *In caso di approvazione ricevi il ruolo e accedi*\n\n"
+        "**—ㅤ〖 Requisiti 〗—**\n\n"
+        "> ✅ *Conoscenza base del Roleplay*\n"
+        "> ✅ *Microfono funzionante*\n"
+        "> ✅ *Rispetto delle regole*\n"
+        "> ✅ *Età minima consigliata: 16 anni*\n\n"
+        "⚠️ *Lo Staff valuterà ogni candidatura con attenzione. In caso di rifiuto puoi riprovare.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Eclipse City RP — Porta d'ingresso alla città.*"
+    ),
+
+    # ── LAVORI ────────────────────────────────────────────────
+    "lavor": (
+        "💼 **LAVORI DISPONIBILI — ECLIPSE CITY RP**\n"
+        f"{_SEP}\n"
+        "📌 *Scegli il tuo percorso nella città. Ogni lavoro ha gradi, stipendi e responsabilità uniche.*\n\n"
+        "**—ㅤ〖 Forze dell'Ordine 〗—**\n\n"
+        "> 🚔 *MSPD — Polizia Metropolitana di Stato*\n"
+        "> 🕵️ *FBI — Agenzia Federale d'Investigazione*\n"
+        "> 🔥 *MSFD — Vigili del Fuoco*\n"
+        "> 🚑 *EMS — Emergenze Mediche*\n"
+        "> ⚓ *Navy Seal — Forze Speciali*\n\n"
+        "**—ㅤ〖 Giustizia 〗—**\n\n"
+        "> ⚖️ *Avvocato — Studio Legale*\n"
+        "> 🏛️ *Giudice — Tribunale di Eclipse City*\n\n"
+        "**—ㅤ〖 Settore Privato 〗—**\n\n"
+        "> 🚗 *Concessionario · 🔧 Officina · 🏦 Banca*\n"
+        "> 🛒 *Supermarket · 🏘️ Dynasty8 · 🎰 Casino*\n"
+        "> ✈️ *Airlines · 🏖️ Isla de Oro · 🍔 Food4Less*\n\n"
+        "✦ *Parla con un direttore o apri un ticket per candidarti!*\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Eclipse City RP — Trova il tuo posto nella città.*"
+    ),
+
+    # ── TICKET / SUPPORTO ─────────────────────────────────────
+    "ticket": (
+        "🎫 **SUPPORTO — APRI UN TICKET**\n"
+        f"{_SEP}\n"
+        "📌 *Hai bisogno di aiuto? Lo Staff di Eclipse City è qui per te h24.*\n\n"
+        "**—ㅤ〖 Quando aprire un ticket 〗—**\n\n"
+        "> 🛠️ *Problemi tecnici con il server FiveM*\n"
+        "> 🚨 *Segnalazioni di infrazioni al regolamento*\n"
+        "> 📋 *Richieste whitelist o background personaggio*\n"
+        "> 💼 *Candidature a lavori e fazioni*\n"
+        "> ❓ *Qualsiasi altra necessità*\n\n"
+        "**—ㅤ〖 Come procedere 〗—**\n\n"
+        "> ✦ *Clicca il pulsante per aprire il ticket*\n"
+        "> ✦ *Descrivi il problema in modo chiaro*\n"
+        "> ✦ *Attendi la risposta dello Staff*\n\n"
+        "⚠️ *Non aprire ticket per motivi futili. Rispetta il tempo dello Staff.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Eclipse City RP — Staff sempre a tua disposizione.*"
+    ),
+
+    "support": (
+        "🛠️ **SUPPORTO TECNICO — ECLIPSE CITY RP**\n"
+        f"{_SEP}\n"
+        "📌 *Canale di supporto tecnico per problemi con il client o il server.*\n\n"
+        "**—ㅤ〖 Problemi Comuni 〗—**\n\n"
+        "> 💥 *Crash del client FiveM → Verifica integrità file*\n"
+        "> 🌐 *Lag o disconnessioni → Controlla la connessione*\n"
+        "> 🗑️ *Bug con risorse → Cancella la cache di FiveM*\n"
+        "> 📸 *Bug in gioco → Segnala con screenshot nel ticket*\n\n"
+        "✦ *Per assistenza personalizzata apri un ticket!*\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Eclipse City RP — Supporto Tecnico Ufficiale.*"
+    ),
+
+    # ── MSPD / POLIZIA ────────────────────────────────────────
+    "mspd": (
+        "🚔 **MSPD — METROPOLITAN STATE POLICE DEPARTMENT**\n"
+        f"{_SEP}\n"
+        "📌 *La Polizia Metropolitana di Stato di Eclipse City. Serve e Proteggi.*\n\n"
+        "**—ㅤ〖 Missione 〗—**\n\n"
+        "> 🛡️ *Mantenere l'ordine pubblico nella città*\n"
+        "> 👮 *Proteggere i cittadini onesti*\n"
+        "> 🔫 *Combattere la criminalità organizzata*\n"
+        "> 🤝 *Cooperare con FBI, EMS e MSFD*\n\n"
+        "**—ㅤ〖 Gradi 〗—**\n\n"
+        "> *Agente/Allievo → Agente Scelto → Assistente → Sovrintendente*\n"
+        "> *Ispettore → Vice Commissario → Commissario → Primo Dirigente*\n\n"
+        "📞 *Emergenze: chiama il 911 in gioco.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🚔 *MSPD Eclipse City — Serve e Proteggi.*"
+    ),
+
+    "polizia": (
+        "🚔 **FORZE DELL'ORDINE — ECLIPSE CITY**\n"
+        f"{_SEP}\n"
+        "📌 *Le Forze dell'Ordine garantiscono sicurezza e legalità nella metropoli.*\n\n"
+        "> 🚔 *MSPD — Polizia Metropolitana*\n"
+        "> 🕵️ *FBI — Agenzia Federale*\n"
+        "> ⚓ *Navy Seal — Forze Speciali*\n\n"
+        "📞 *Per emergenze chiama il 911!*\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Eclipse City RP — Ordine e Sicurezza.*"
+    ),
+
+    # ── EMS ───────────────────────────────────────────────────
+    "ems": (
+        "🚑 **EMS — EMERGENCY MEDICAL SERVICES**\n"
+        f"{_SEP}\n"
+        "📌 *Il Servizio di Emergenza Medica di Eclipse City. Ogni vita conta.*\n\n"
+        "**—ㅤ〖 Servizi 〗—**\n\n"
+        "> 🏥 *Interventi di primo soccorso*\n"
+        "> 🚑 *Trasporto e ricovero ospedaliero*\n"
+        "> 📋 *Gestione fascicoli medici dei cittadini*\n"
+        "> 💉 *Chirurgie e trattamenti specializzati*\n\n"
+        "📞 *Chiamate: 911 in gioco → Seleziona MEDICI*\n\n"
+        f"{_SEP_THIN}\n"
+        "🚑 *EMS Eclipse City — Siamo sempre pronti.* ❤️"
+    ),
+
+    "ospedale": (
+        "🏥 **ECLIPSE CITY MEDICAL CENTER**\n"
+        f"{_SEP}\n"
+        "📌 *L'ospedale centrale di Eclipse City. Aperto 24 ore su 24, 7 giorni su 7.*\n\n"
+        "> 🚨 *Pronto Soccorso attivo h24*\n"
+        "> 🧬 *Reparti specializzati*\n"
+        "> 📂 *Fascicoli medici digitali*\n"
+        "> 👨‍⚕️ *Personale altamente qualificato*\n\n"
+        "✦ *La tua salute è la nostra priorità.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🏥 *Eclipse City Medical Center — Cure. Vita. Speranza.*"
+    ),
+
+    # ── MSFD ──────────────────────────────────────────────────
+    "msfd": (
+        "🔥 **MSFD — METROPOLITAN STATE FIRE DEPARTMENT**\n"
+        f"{_SEP}\n"
+        "📌 *I Vigili del Fuoco di Eclipse City. Pronti a intervenire in ogni emergenza.*\n\n"
+        "**—ㅤ〖 Interventi 〗—**\n\n"
+        "> 🔥 *Spegnimento incendi e salvataggio*\n"
+        "> 🚗 *Liberazione da veicoli incidentati*\n"
+        "> ⚗️ *Gestione materiali pericolosi*\n"
+        "> 🤝 *Supporto all'EMS nelle emergenze*\n\n"
+        "📞 *Emergenze: chiama il 911 in gioco.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🔥 *MSFD Eclipse City — Coraggio ogni giorno.*"
+    ),
+
+    # ── FBI ───────────────────────────────────────────────────
+    "fbi": (
+        "🕵️ **FBI — FEDERAL BUREAU OF INVESTIGATION**\n"
+        f"{_SEP}\n"
+        "📌 *L'Agenzia Federale di Eclipse City. Classificato.*\n\n"
+        "**—ㅤ〖 Obiettivi 〗—**\n\n"
+        "> 🔍 *Smantellare organizzazioni criminali*\n"
+        "> 🕵️ *Operazioni sotto copertura*\n"
+        "> 📡 *Sorveglianza e intelligence avanzata*\n"
+        "> 🤝 *Cooperazione con MSPD e forze speciali*\n\n"
+        "🔒 *Informazioni classificate — accesso riservato al personale.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🕵️ *FBI Eclipse City — Above the Law. Beyond the Badge.*"
+    ),
+
+    # ── NAVY SEAL ─────────────────────────────────────────────
+    "navy": (
+        "⚓ **NAVY SEAL — ECLIPSE CITY**\n"
+        f"{_SEP}\n"
+        "📌 *Le Forze Speciali d'élite di Eclipse City. I migliori tra i migliori.*\n\n"
+        "**—ㅤ〖 Missioni 〗—**\n\n"
+        "> 🎯 *Operazioni ad alto rischio*\n"
+        "> 🔫 *Neutralizzazione minacce armate*\n"
+        "> 🏴 *Infiltrazione in zone ostili*\n"
+        "> 🤝 *Supporto alle FDO in casi estremi*\n\n"
+        "**—ㅤ〖 Gradi 〗—**\n\n"
+        "> *Recluta → Operatore → Sottufficiale → Ufficiale → Generale*\n\n"
+        f"{_SEP_THIN}\n"
+        "⚓ *Navy Seal Eclipse City — Solo i migliori.*"
+    ),
+
+    # ── CASINO ────────────────────────────────────────────────
+    "casino": (
+        "🎰 **CASINO — ECLIPSE CITY**\n"
+        f"{_SEP}\n"
+        "📌 *Il Casino più lussuoso di Eclipse City. Prova la fortuna!*\n\n"
+        "**—ㅤ〖 Giochi Disponibili 〗—**\n\n"
+        "> 🎰 *Slot Machine*\n"
+        "> 🃏 *Poker Texas Hold'em*\n"
+        "> 🖤 *Blackjack*\n"
+        "> 🎡 *Roulette*\n\n"
+        "**—ㅤ〖 Come Giocare 〗—**\n\n"
+        "> **1️⃣** *Acquista chip al banco*\n"
+        "> **2️⃣** *Scegli il tuo tavolo*\n"
+        "> **3️⃣** *Vinci in grande stile!*\n\n"
+        "✦ *Gioca responsabilmente. Buona fortuna!* 🍀\n\n"
+        f"{_SEP_THIN}\n"
+        "🎰 *Casino Eclipse City — Fortuna o abilità?*"
+    ),
+
+    # ── BANCA ─────────────────────────────────────────────────
+    "banca": (
+        "🏦 **ECLIPSE CITY NATIONAL BANK**\n"
+        f"{_SEP}\n"
+        "📌 *La Banca Nazionale di Eclipse City. Il tuo denaro al sicuro.*\n\n"
+        "**—ㅤ〖 Servizi Bancari 〗—**\n\n"
+        "> 💳 *Apertura conto corrente*\n"
+        "> 💰 *Depositi e prelievi*\n"
+        "> 🔄 *Trasferimenti tra giocatori*\n"
+        "> 📊 *Estratto conto e storico transazioni*\n"
+        "> 🏠 *Mutui e prestiti (disponibili in-game)*\n\n"
+        "🔐 *Il tuo patrimonio è protetto 24/7.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🏦 *Eclipse City National Bank — Il tuo futuro inizia qui.*"
+    ),
+
+    # ── CONCESSIONARIO ────────────────────────────────────────
+    "concessionario": (
+        "🚗 **ECLIPSE CITY MOTORS — CONCESSIONARIO**\n"
+        f"{_SEP}\n"
+        "📌 *Il miglior concessionario di Eclipse City. Trova il veicolo dei tuoi sogni!*\n\n"
+        "**—ㅤ〖 Disponibile 〗—**\n\n"
+        "> 🏎️ *Auto sportive e supercar*\n"
+        "> 🚙 *SUV, berline e furgoni*\n"
+        "> 🏍️ *Moto e quad*\n"
+        "> ✈️ *Veicoli speciali su richiesta*\n\n"
+        "💰 *Prezzi competitivi e adatti a ogni budget.*\n\n"
+        "✦ *Parla con un nostro consulente per maggiori info!*\n\n"
+        f"{_SEP_THIN}\n"
+        "🚗 *Eclipse City Motors — Guida il tuo sogno.*"
+    ),
+
+    # ── OFFICINA ──────────────────────────────────────────────
+    "officina": (
+        "🔧 **ECLIPSE CITY GARAGE — OFFICINA**\n"
+        f"{_SEP}\n"
+        "📌 *L'officina meccanica di riferimento di Eclipse City.*\n\n"
+        "**—ㅤ〖 Servizi 〗—**\n\n"
+        "> ⚙️ *Riparazioni e manutenzione ordinaria*\n"
+        "> 🎨 *Verniciatura e personalizzazione estetica*\n"
+        "> 🏎️ *Tuning prestazionale*\n"
+        "> 💥 *Salvataggio veicoli distrutti*\n\n"
+        "✦ *Il tuo veicolo in perfetta efficienza, sempre.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🔧 *Eclipse City Garage — Meccanica di qualità.*"
+    ),
+
+    # ── SUPERMARKET ───────────────────────────────────────────
+    "supermarket": (
+        "🛒 **SUPERMARKET — ECLIPSE CITY**\n"
+        f"{_SEP}\n"
+        "📌 *Il supermercato della città. Tutto ciò di cui hai bisogno in un posto solo.*\n\n"
+        "**—ㅤ〖 Disponibile 〗—**\n\n"
+        "> 🥩 *Alimenti freschi e confezionati*\n"
+        "> 💊 *Medicinali e pronto soccorso*\n"
+        "> 🎒 *Accessori per la vita quotidiana*\n"
+        "> 💧 *Bevande e snack*\n\n"
+        "✦ *Prezzi accessibili per tutti i cittadini.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🛒 *Supermarket Eclipse City — La spesa di ogni giorno.*"
+    ),
+
+    # ── DYNASTY8 ──────────────────────────────────────────────
+    "dynasty8": (
+        "🏘️ **DYNASTY 8 — IMMOBILIARE**\n"
+        f"{_SEP}\n"
+        "📌 *Il miglior ufficio immobiliare di Eclipse City. Casa tua ti aspetta.*\n\n"
+        "**—ㅤ〖 Proprietà Disponibili 〗—**\n\n"
+        "> 🏠 *Case popolari e appartamenti*\n"
+        "> 🏰 *Ville di lusso*\n"
+        "> 🏢 *Locali commerciali*\n"
+        "> 🏗️ *Proprietà in costruzione*\n\n"
+        "✦ *Parla con un agente Dynasty8 per trovare casa!*\n\n"
+        f"{_SEP_THIN}\n"
+        "🏘️ *Dynasty 8 — La tua casa nella città.*"
+    ),
+
+    # ── AIRLINES ──────────────────────────────────────────────
+    "airlines": (
+        "✈️ **ECLIPSE CITY AIRLINES**\n"
+        f"{_SEP}\n"
+        "📌 *La compagnia aerea ufficiale di Eclipse City.*\n\n"
+        "**—ㅤ〖 Servizi 〗—**\n\n"
+        "> ✈️ *Voli privati su tutto il territorio*\n"
+        "> 🚁 *Trasporti in elicottero*\n"
+        "> 🌊 *Trasporti marittimi*\n"
+        "> 🏖️ *Tour esclusivi della città*\n\n"
+        "✦ *Il lusso del viaggio, a Eclipse City.*\n\n"
+        f"{_SEP_THIN}\n"
+        "✈️ *Eclipse City Airlines — Vola in alto.*"
+    ),
+
+    # ── ISLA DE ORO ───────────────────────────────────────────
+    "isla": (
+        "🏖️ **ISLA DE ORO — RISTORANTE DI LUSSO**\n"
+        f"{_SEP}\n"
+        "📌 *Il ristorante più esclusivo di Eclipse City. Un'esperienza unica.*\n\n"
+        "**—ㅤ〖 Ruoli 〗—**\n\n"
+        "> 🍽️ *Dipendente — Servizio al tavolo*\n"
+        "> 🔒 *Sicurezza — Protezione del locale*\n"
+        "> 👨‍🍳 *Chef — Creazione dei piatti*\n"
+        "> 👑 *Direttore — Gestione del locale*\n\n"
+        "✦ *Candidati parlando con il Direttore!*\n\n"
+        f"{_SEP_THIN}\n"
+        "🏖️ *Isla de Oro — Dove il lusso incontra il gusto.*"
+    ),
+
+    # ── AVVOCATO ──────────────────────────────────────────────
+    "avvocato": (
+        "⚖️ **STUDIO LEGALE — ECLIPSE CITY**\n"
+        f"{_SEP}\n"
+        "📌 *La Giustizia di Eclipse City. Difendiamo i tuoi diritti.*\n\n"
+        "**—ㅤ〖 Gradi 〗—**\n\n"
+        "> 📚 *Praticante Avvocato*\n"
+        "> ⚖️ *Avvocato Junior → Senior*\n"
+        "> 👑 *Avvocato Capo*\n\n"
+        "**—ㅤ〖 Competenze 〗—**\n\n"
+        "> 🔍 *Difesa penale e civile*\n"
+        "> 🏛️ *Rappresentanza in tribunale*\n"
+        "> 📋 *Consulenze legali ai cittadini*\n\n"
+        f"{_SEP_THIN}\n"
+        "⚖️ *Studio Legale Eclipse City — La legge dalla tua parte.*"
+    ),
+
+    # ── GIUDICE / TRIBUNALE ───────────────────────────────────
+    "giudice": (
+        "🏛️ **TRIBUNALE — ECLIPSE CITY**\n"
+        f"{_SEP}\n"
+        "📌 *Il Tribunale di Eclipse City. Giustizia per tutti i cittadini.*\n\n"
+        "**—ㅤ〖 Gradi 〗—**\n\n"
+        "> 📚 *Giudice Tirocinante*\n"
+        "> ⚖️ *Giudice → Giudice Senior*\n"
+        "> 🏛️ *Giudice d'Appello → Giudice Supremo*\n\n"
+        "✦ *Le sentenze del Tribunale sono definitive.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🏛️ *Tribunale di Eclipse City — Giustizia e Legge.*"
+    ),
+
+    "tribunal": (
+        "🏛️ **TRIBUNALE — ECLIPSE CITY**\n"
+        f"{_SEP}\n"
+        "📌 *Il Tribunale di Eclipse City. Giustizia per tutti i cittadini.*\n\n"
+        "> ⚖️ *Processi penali e civili*\n"
+        "> 📋 *Sentenze e verdetti ufficiali*\n"
+        "> 🔒 *Ordinanze di custodia cautelare*\n\n"
+        f"{_SEP_THIN}\n"
+        "🏛️ *Tribunale di Eclipse City — Fiat iustitia.*"
+    ),
+
+    # ── METEO ─────────────────────────────────────────────────
+    "meteo": (
+        "🌤️ **METEO — ECLIPSE CITY**\n"
+        f"{_SEP}\n"
+        "📌 *Bollettino meteorologico automatico di Eclipse City.*\n\n"
+        "> 🔄 *Aggiornamento automatico ogni 24 ore*\n"
+        "> 🍂 *Stagioni dinamiche (cambio ogni 15 giorni)*\n"
+        "> ⛅ *Condizioni meteo variabili e realistiche*\n"
+        "> 🌡️ *Temperature adatte alla stagione corrente*\n\n"
+        "✦ *Preparati per ogni tipo di clima!*\n\n"
+        f"{_SEP_THIN}\n"
+        "🌤️ *Eclipse City RP — Servizio Meteo Ufficiale.*"
+    ),
+
+    # ── CHAT GENERALE ─────────────────────────────────────────
+    "general": (
+        "💬 **CHAT GENERALE — ECLIPSE CITY RP**\n"
+        f"{_SEP}\n"
+        "📌 *Benvenuto nella chat generale del server!*\n\n"
+        "**—ㅤ〖 Regole del Canale 〗—**\n\n"
+        "> ✅ *Rispetta tutti i membri*\n"
+        "> ✅ *Niente spam o flood di messaggi*\n"
+        "> ✅ *Argomenti in tema con il server*\n"
+        "> ❌ *No discussioni politiche o religiose*\n"
+        "> ❌ *No contenuti NSFW*\n\n"
+        "✦ *Chatta, ridi e fai nuove amicizie!* 🌆\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Eclipse City RP — Community.*"
+    ),
+
+    "chat": (
+        "💬 **CHAT — ECLIPSE CITY RP**\n"
+        f"{_SEP}\n"
+        "📌 *Canale di chat libera per la community.*\n\n"
+        "> ✅ *Rispetta tutti*\n"
+        "> ✅ *Niente spam*\n"
+        "> ✦ *Goditi la conversazione!*\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Eclipse City RP — Community.*"
+    ),
+
+    # ── LOG ───────────────────────────────────────────────────
+    "log": (
+        "📋 **SISTEMA DI LOG — ECLIPSE CITY RP**\n"
+        f"{_SEP}\n"
+        "📌 *Canale di registrazione automatica delle azioni del bot.*\n\n"
+        "> 🔒 *Accesso riservato allo Staff*\n"
+        "> 🤖 *Ogni azione viene registrata automaticamente*\n"
+        "> 📂 *Le informazioni sono riservate e confidenziali*\n\n"
+        f"{_SEP_THIN}\n"
+        "🔒 *Eclipse City RP — Sistema di Log Interno.*"
+    ),
+
+    # ── SONDAGGI ──────────────────────────────────────────────
+    "sondagg": (
+        "📊 **SONDAGGI — ECLIPSE CITY RP**\n"
+        f"{_SEP}\n"
+        "📌 *Canale dedicato ai sondaggi ufficiali della community.*\n\n"
+        "> 🗳️ *Partecipa ai sondaggi*\n"
+        "> 💡 *La tua opinione conta davvero*\n"
+        "> 🔒 *Solo lo Staff può creare sondaggi*\n\n"
+        "✦ *Insieme costruiamo una community migliore.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Eclipse City RP — La tua voce conta.*"
+    ),
+
+    # ── STAFF ─────────────────────────────────────────────────
+    "staff": (
+        "👑 **STAFF — ECLIPSE CITY RP**\n"
+        f"{_SEP}\n"
+        "📌 *Canale riservato allo Staff ufficiale di Eclipse City RP.*\n\n"
+        "> 🔒 *Accesso esclusivo ai membri Staff*\n"
+        "> 📋 *Organizzazione interna e decisioni*\n"
+        "> 🎉 *Pianificazione eventi e sessioni*\n"
+        "> 🛠️ *Gestione server e community*\n\n"
+        "✦ *Grazie per il vostro impegno quotidiano!* 💪\n\n"
+        f"{_SEP_THIN}\n"
+        "👑 *Eclipse City RP — Staff Ufficiale.*"
+    ),
+
+    # ── PRIGIONE ──────────────────────────────────────────────
+    "prigione": (
+        "🔒 **PRIGIONE — ECLIPSE CITY CORRECTIONAL**\n"
+        f"{_SEP}\n"
+        "📌 *Il carcere di Eclipse City. Chi rompe le regole, paga.*\n\n"
+        "> 🚔 *Detenzione gestita dall'MSPD*\n"
+        "> ⏱️ *Tempo di detenzione variabile in base al reato*\n"
+        "> ⚖️ *Possibilità di ricorso tramite un avvocato*\n"
+        "> 🔑 *Libertà condizionale disponibile*\n\n"
+        "✦ *Il crimine non paga. Eclipse City vigila.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🔒 *Eclipse City Correctional — Ordine e Giustizia.*"
+    ),
+
+    # ── GARAGE ────────────────────────────────────────────────
+    "garage": (
+        "🚘 **GARAGE — ECLIPSE CITY**\n"
+        f"{_SEP}\n"
+        "📌 *Il tuo garage personale a Eclipse City.*\n\n"
+        "> 🚗 *Gestisci tutti i tuoi veicoli*\n"
+        "> 🔧 *Preleva e deposita i mezzi*\n"
+        "> 📋 *Storico acquisti e targhe*\n\n"
+        "✦ *La tua flotta al sicuro, sempre.*\n\n"
+        f"{_SEP_THIN}\n"
+        "🚘 *Eclipse City RP — Il tuo garage.*"
+    ),
+
+    # ── EVENTI ────────────────────────────────────────────────
+    "event": (
+        "🎉 **EVENTI — ECLIPSE CITY RP**\n"
+        f"{_SEP}\n"
+        "📌 *Canale dedicato agli eventi ufficiali del server.*\n\n"
+        "> 🏁 *Gare automobilistiche*\n"
+        "> 🎭 *Sessioni di roleplay speciali*\n"
+        "> 🏆 *Tornei e competizioni*\n"
+        "> 🎁 *Premi e ricompense esclusive*\n\n"
+        "✦ *Partecipa e vinci premi esclusivi!*\n\n"
+        f"{_SEP_THIN}\n"
+        "🎉 *Eclipse City RP — Ogni evento è unico.*"
+    ),
+
+    # ── SCIENTIFICA ───────────────────────────────────────────
+    "scientifica": (
+        "🔬 **SCIENTIFICA — ECLIPSE CITY**\n"
+        f"{_SEP}\n"
+        "📌 *La Polizia Scientifica di Eclipse City.*\n\n"
+        "**—ㅤ〖 Gradi 〗—**\n\n"
+        "> 🔬 *Recluta Investigativa*\n"
+        "> 🧪 *Tecnico di Laboratorio*\n"
+        "> 🖥️ *Analista Informatico e Digitale*\n"
+        "> 👨‍⚕️ *Medico Esaminatore*\n"
+        "> 👑 *Capo Reparto Scientifica*\n\n"
+        f"{_SEP_THIN}\n"
+        "🔬 *Scientifica Eclipse City — La scienza al servizio della giustizia.*"
+    ),
+}
+
+def _get_riempi_testo(channel_name: str) -> str:
+    """Restituisce il testo appropriato in base al nome del canale."""
+    nome = channel_name.lower().replace("-", "").replace("_", "").replace("│", "").replace(" ", "").replace("┃", "")
+    for keyword, testo in _RIEMPI_TESTI.items():
+        if keyword in nome:
+            return testo
+    # Testo generico se non trova corrispondenze
+    nome_display = channel_name.replace("-", " ").replace("_", " ").replace("│", "").replace("┃", "").strip().title()
+    return (
+        f"📌 **{nome_display.upper()} — ECLIPSE CITY RP**\n"
+        f"{_SEP}\n"
+        f"*Benvenuto nel canale **{nome_display}**!*\n\n"
+        "> ✦ *Questo canale fa parte del server Eclipse City RP*\n"
+        "> ✦ *Rispetta il regolamento in ogni momento*\n"
+        "> ✦ *Usa questo canale per lo scopo indicato*\n"
+        "> ✦ *In caso di dubbi contatta lo Staff*\n\n"
+        f"{_SEP_THIN}\n"
+        "🌆 *Eclipse City RP — La tua città, la tua storia.*"
+    )
+
+
 _RIEMPI_CONTENUTI: dict[str, tuple] = {
     # ── REGOLE ────────────────────────────────────────────────
     "regol": (
@@ -11472,41 +12085,31 @@ def _get_riempi_content(channel_name: str) -> tuple:
 @bot.command(name="riempi")
 async def riempi_canali(ctx: commands.Context):
     """
-    ,riempi — Invia un embed personalizzato in ogni canale di testo del server.
+    ,riempi — Invia un messaggio nativo Discord in ogni canale.
+    Ogni canale riceve un testo unico basato sul suo nome.
     Solo Admin o Developer possono usarlo.
     """
     # ── Controllo permessi ─────────────────────────────────────
     is_dev = ctx.author.id == DEVELOPER_ID
     is_admin = ctx.author.guild_permissions.administrator if ctx.guild else False
     if not (is_dev or is_admin):
-        embed_err = discord.Embed(
-            description="❌ **Accesso negato.** Questo comando è riservato agli Amministratori.",
-            color=discord.Color.red()
+        return await ctx.send(
+            "❌ **Accesso negato.** Questo comando è riservato agli Amministratori.",
+            delete_after=8
         )
-        return await ctx.send(embed=embed_err, delete_after=8)
-
     if ctx.guild is None:
         return await ctx.send("❌ Comando utilizzabile solo in un server.", delete_after=5)
 
-    # ── Messaggio di avvio ─────────────────────────────────────
     canali_testo = [
         ch for ch in ctx.guild.channels
         if isinstance(ch, discord.TextChannel)
     ]
-    embed_avvio = discord.Embed(
-        color=discord.Color.from_rgb(255, 107, 53),
-        timestamp=datetime.now()
-    )
-    embed_avvio.set_author(name="🎨 Eclipse City RP — Sistema Riempi Canali", icon_url=LOGO_SERVER)
-    embed_avvio.description = (
-        f"🚀 **Avvio procedura di riempimento canali...**\n\n"
+
+    msg_stato = await ctx.send(
+        f"🚀 **Avvio riempimento canali...**\n"
         f"➢ Canali trovati: **{len(canali_testo)}**\n"
-        f"➢ Ogni canale riceverà un embed personalizzato\n"
-        f"➢ Attendi il completamento...\n\n"
-        f"*Non interrompere il processo!*"
+        f"*Attendi il completamento — non interrompere!*"
     )
-    embed_avvio.set_footer(text=f"Eseguito da {ctx.author}", icon_url=ctx.author.display_avatar.url)
-    msg_stato = await ctx.send(embed=embed_avvio)
 
     riusciti = 0
     saltati = 0
@@ -11514,71 +12117,23 @@ async def riempi_canali(ctx: commands.Context):
 
     for canale in canali_testo:
         try:
-            titolo, descrizione, colore, emoji_h = _get_riempi_content(canale.name)
-
-            embed = discord.Embed(
-                title=titolo,
-                description=descrizione,
-                color=colore,
-                timestamp=datetime.now()
-            )
-
-            # Header visivo con linea decorativa
-            embed.set_author(
-                name=f"{emoji_h}  Eclipse City Roleplay",
-                icon_url=LOGO_SERVER
-            )
-
-            # Banner / thumbnail
-            embed.set_thumbnail(url=LOGO_SERVER)
-
-            # Campo info canale
-            embed.add_field(
-                name="📌 Canale",
-                value=f"{canale.mention}",
-                inline=True
-            )
-            embed.add_field(
-                name="🕐 Aggiornato",
-                value=f"<t:{int(datetime.now().timestamp())}:R>",
-                inline=True
-            )
-            embed.add_field(
-                name="🌆 Server",
-                value="Eclipse City RP",
-                inline=True
-            )
-
-            embed.set_footer(
-                text="Eclipse City RP  •  Il tuo personaggio. La tua storia.",
-                icon_url=LOGO_SERVER
-            )
-
-            await canale.send(embed=embed)
+            testo = _get_riempi_testo(canale.name)
+            await canale.send(testo)
             riusciti += 1
-            await asyncio.sleep(0.7)  # Rate-limit safety
-
+            await asyncio.sleep(0.8)  # Rate-limit safety
         except discord.Forbidden:
             saltati += 1
         except Exception as e:
             print(f"[riempi] Errore su #{canale.name}: {e}")
             errori += 1
 
-    # ── Messaggio di completamento ─────────────────────────────
-    embed_fine = discord.Embed(
-        color=discord.Color.from_rgb(50, 200, 100),
-        timestamp=datetime.now()
-    )
-    embed_fine.set_author(name="✅ Riempimento Completato!", icon_url=LOGO_SERVER)
-    embed_fine.description = (
-        "**La procedura è terminata con successo!**\n\n"
-        f"✅ **Canali riempiti:** {riusciti}\n"
-        f"⚠️ **Canali saltati (no permesso):** {saltati}\n"
-        f"❌ **Errori:** {errori}\n\n"
+    await msg_stato.edit(content=(
+        f"✅ **Riempimento completato!**\n\n"
+        f"✅ Canali riempiti: **{riusciti}**\n"
+        f"⚠️ Saltati (no permesso): **{saltati}**\n"
+        f"❌ Errori: **{errori}**\n\n"
         f"*Tutti i canali accessibili sono stati aggiornati.*"
-    )
-    embed_fine.set_footer(text=f"Completato da {ctx.author}", icon_url=ctx.author.display_avatar.url)
-    await msg_stato.edit(embed=embed_fine)
+    ))
 
 
 # --- AVVIO DEL BOT ---
