@@ -64,7 +64,7 @@ intents.message_content = True
 intents.members = True
 intents.reactions = True 
 
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix=["!", ","], intents=intents)
 
 # --- 🖼️ GRAFICHE E LOGHI ---
 LOGO_SERVER = "https://i.postimg.cc/hzfPFQCK/IMG-0236.webp"
@@ -11051,6 +11051,535 @@ async def pannello_911(interaction: discord.Interaction):
     )
     await interaction.channel.send(embed=embed, view=Chiamata911View())
     await interaction.response.send_message("✅ Pannello 911 pubblicato con successo.", ephemeral=True)
+
+# ══════════════════════════════════════════════════════════════
+# 🎨  COMANDO ,riempi  —  Riempie tutti i canali del server
+# Uso: ,riempi          → riempie tutti i canali di testo
+# Solo Admin / DEVELOPER_ID
+# ══════════════════════════════════════════════════════════════
+
+# Dizionario: parole chiave nel nome canale → contenuto personalizzato
+# Ogni entry: (titolo_embed, descrizione, colore, emoji_header)
+_RIEMPI_CONTENUTI: dict[str, tuple] = {
+    # ── REGOLE ────────────────────────────────────────────────
+    "regol": (
+        "📜  REGOLAMENTO DI ECLIPSE CITY RP",
+        (
+            "Benvenuto nel Regolamento ufficiale di **Eclipse City RP**.\n\n"
+            "**§1 — Rispetto**\n"
+            "➢ Ogni giocatore merita rispetto. Insulti, discriminazioni o comportamenti tossici sono vietati.\n\n"
+            "**§2 — Roleplay realistico**\n"
+            "➢ Il roleplay deve essere credibile e coerente. Evita azioni irrealistiche (No Fear RP, Power Gaming, Meta Gaming).\n\n"
+            "**§3 — Non uscire dal personaggio (OOC)**\n"
+            "➢ Tieni separata la vita reale dal gioco. Non usare informazioni esterne al RP.\n\n"
+            "**§4 — Rispetta le FDO**\n"
+            "➢ Le Forze dell'Ordine svolgono un lavoro fondamentale per il server. Rispetta le procedure.\n\n"
+            "**§5 — Segnalazioni**\n"
+            "➢ Usa i canali dedicati per segnalare infrazioni. Non fare giustizia da solo.\n\n"
+            "**§6 — Staff**\n"
+            "➢ Le decisioni dello Staff sono definitive e vanno rispettate in ogni circostanza.\n\n"
+            "*La violazione ripetuta del regolamento comporta sanzioni fino al ban permanente.*"
+        ),
+        discord.Color.from_rgb(255, 107, 53),
+        "⚖️"
+    ),
+    # ── ANNUNCI / NEWS ────────────────────────────────────────
+    "annunci": (
+        "📢  ANNUNCI UFFICIALI — ECLIPSE CITY RP",
+        (
+            "Questo canale è riservato agli **annunci ufficiali** del server.\n\n"
+            "➢ Solo lo **Staff** può pubblicare in questo canale.\n"
+            "➢ Leggi ogni annuncio con attenzione.\n"
+            "➢ Per domande usa il canale di supporto dedicato.\n\n"
+            "*Attiva le notifiche per non perdere nessun aggiornamento!* 🔔"
+        ),
+        discord.Color.from_rgb(255, 200, 0),
+        "📣"
+    ),
+    "news": (
+        "📰  NEWS — ECLIPSE CITY RP",
+        (
+            "Tutte le novità, aggiornamenti e comunicazioni del server.\n\n"
+            "➢ Aggiornamenti di gioco\n"
+            "➢ Nuove feature e contenuti\n"
+            "➢ Comunicazioni importanti\n\n"
+            "*Resta sempre aggiornato su tutto ciò che accade a Eclipse City!* 🌆"
+        ),
+        discord.Color.from_rgb(255, 200, 0),
+        "🗞️"
+    ),
+    # ── BENVENUTO / INFO SERVER ───────────────────────────────
+    "benvenuto": (
+        "🌆  BENVENUTO A ECLIPSE CITY RP",
+        (
+            "**Benvenuto nella città più viva del roleplay italiano!** 🎮\n\n"
+            "Eclipse City RP è un server FiveM dedicato al roleplay serio e immersivo.\n\n"
+            "**📌 Per iniziare:**\n"
+            "➢ Leggi il **#regolamento** con attenzione\n"
+            "➢ Completa la **whitelist** per accedere al server\n"
+            "➢ Scegli il tuo **lavoro** o inizia come cittadino\n"
+            "➢ Rispetta le regole e goditi l'esperienza!\n\n"
+            "**🌐 Server FiveM:** Eclipse City RP\n"
+            "**📋 Staff:** Apri un ticket per qualsiasi supporto\n\n"
+            "*Buon roleplay a tutti!* ✨"
+        ),
+        discord.Color.from_rgb(100, 200, 255),
+        "🏙️"
+    ),
+    "info": (
+        "ℹ️  INFORMAZIONI — ECLIPSE CITY RP",
+        (
+            "**Eclipse City Roleplay** — Server FiveM italiano ad alto livello.\n\n"
+            "**🎯 Cosa offriamo:**\n"
+            "➢ Economia realistica con lavori legali e illegali\n"
+            "➢ Sistema giudiziario attivo (Avvocati, Giudici, FBI)\n"
+            "➢ Forze dell'Ordine strutturate (MSPD, EMS, MSFD)\n"
+            "➢ Attività criminali organizzate\n"
+            "➢ Immobili, veicoli e molto altro\n\n"
+            "**📊 Statistiche Server:**\n"
+            "➢ Community attiva e in crescita\n"
+            "➢ Staff dedicato e disponibile\n"
+            "➢ Aggiornamenti frequenti\n\n"
+            "*Entra nella città. Vivi la tua storia.* 🌆"
+        ),
+        discord.Color.from_rgb(100, 200, 255),
+        "🌐"
+    ),
+    # ── WHITELIST ─────────────────────────────────────────────
+    "whitelist": (
+        "📋  WHITELIST — ECLIPSE CITY RP",
+        (
+            "Per accedere al server FiveM è necessario superare la **whitelist**.\n\n"
+            "**📝 Procedura:**\n"
+            "➢ Leggi il regolamento completo\n"
+            "➢ Compila il modulo di candidatura\n"
+            "➢ Attendi la revisione dello Staff\n"
+            "➢ In caso di approvazione riceverai il ruolo\n\n"
+            "**⚠️ Requisiti:**\n"
+            "➢ Conoscenza base del Roleplay\n"
+            "➢ Microfono funzionante\n"
+            "➢ Rispetto delle regole\n"
+            "➢ Età minima consigliata: 16 anni\n\n"
+            "*Lo Staff valuterà ogni candidatura con attenzione.*"
+        ),
+        discord.Color.from_rgb(50, 200, 100),
+        "✅"
+    ),
+    # ── LAVORI / JOB ──────────────────────────────────────────
+    "lavor": (
+        "💼  LAVORI DISPONIBILI — ECLIPSE CITY RP",
+        (
+            "Esplora tutti i lavori disponibili nella città!\n\n"
+            "**👮 Forze dell'Ordine:**\n"
+            "➢ MSPD — Polizia Metropolitana\n"
+            "➢ FBI — Agenzia Federale\n"
+            "➢ MSFD — Vigili del Fuoco\n"
+            "➢ EMS — Emergenze Mediche\n\n"
+            "**⚖️ Giustizia:**\n"
+            "➢ Avvocato — Studio legale\n"
+            "➢ Giudice — Tribunale di Eclipse City\n\n"
+            "**🏢 Settore Privato:**\n"
+            "➢ Concessionario, Officina, Banca, Supermarket\n"
+            "➢ Casino, Airlines, Dynasty8 e molti altri\n\n"
+            "**🔞 Attività Criminali:**\n"
+            "➢ Organizzazioni criminali strutturate\n\n"
+            "*Parla con un direttore o apri un ticket per candidarti!*"
+        ),
+        discord.Color.from_rgb(200, 150, 50),
+        "💼"
+    ),
+    # ── TICKET / SUPPORTO ─────────────────────────────────────
+    "ticket": (
+        "🎫  SUPPORTO — APRI UN TICKET",
+        (
+            "Hai bisogno di aiuto? Lo Staff è qui per te!\n\n"
+            "**📌 Quando aprire un ticket:**\n"
+            "➢ Problemi tecnici con il server FiveM\n"
+            "➢ Segnalazioni di infrazioni al regolamento\n"
+            "➢ Richieste di whitelist o background\n"
+            "➢ Domande sulle candidature ai lavori\n"
+            "➢ Qualsiasi altra necessità\n\n"
+            "**⏱️ Tempi di risposta:**\n"
+            "➢ Lo Staff risponde il prima possibile\n"
+            "➢ Nelle ore di punta i tempi potrebbero allungarsi\n\n"
+            "**⚠️ Non aprire ticket per motivi futili.**\n\n"
+            "*Clicca il pulsante qui sotto per aprire un ticket!* 🎫"
+        ),
+        discord.Color.from_rgb(150, 100, 255),
+        "🎫"
+    ),
+    "support": (
+        "🛠️  SUPPORTO TECNICO — ECLIPSE CITY RP",
+        (
+            "Canale di supporto tecnico per problemi con il server.\n\n"
+            "**🔧 Problemi comuni:**\n"
+            "➢ Crash del client FiveM → Verifica integrità file\n"
+            "➢ Lag o disconnessioni → Controlla la tua connessione\n"
+            "➢ Problemi con risorse → Cancella cache FiveM\n"
+            "➢ Bug in gioco → Segnala con screenshot\n\n"
+            "*Per assistenza personalizzata apri un ticket!*"
+        ),
+        discord.Color.from_rgb(150, 100, 255),
+        "🔧"
+    ),
+    # ── POLIZIA / MSPD ────────────────────────────────────────
+    "mspd": (
+        "🚔  MSPD — METROPOLITAN STATE POLICE DEPARTMENT",
+        (
+            "**La Polizia Metropolitana di Eclipse City.**\n\n"
+            "**📋 Missione:**\n"
+            "➢ Mantenere l'ordine pubblico\n"
+            "➢ Proteggere i cittadini onesti\n"
+            "➢ Combattere la criminalità organizzata\n\n"
+            "**🎖️ Gradi Disponibili:**\n"
+            "➢ Agente/Allievo → Primo Dirigente della Polizia\n\n"
+            "**📞 Emergenze:** Contatta il 911\n\n"
+            "*Serve e Proteggi — Eclipse City MSPD* 🛡️"
+        ),
+        discord.Color.from_rgb(21, 101, 192),
+        "🚔"
+    ),
+    "polizia": (
+        "🚔  POLIZIA — ECLIPSE CITY",
+        (
+            "**Forze dell'Ordine a servizio della città.**\n\n"
+            "➢ Pattugliamento delle strade\n"
+            "➢ Gestione degli arresti e delle detenzioni\n"
+            "➢ Cooperazione con FBI ed EMS\n\n"
+            "*Per emergenze chiama il 911!* 🆘"
+        ),
+        discord.Color.from_rgb(21, 101, 192),
+        "🚔"
+    ),
+    # ── EMS / OSPEDALE ────────────────────────────────────────
+    "ems": (
+        "🚑  EMS — EMERGENCY MEDICAL SERVICES",
+        (
+            "**Il Servizio di Emergenza Medica di Eclipse City.**\n\n"
+            "**🏥 Servizi:**\n"
+            "➢ Interventi di primo soccorso\n"
+            "➢ Trasporto e ricovero ospedaliero\n"
+            "➢ Gestione fascicoli medici\n"
+            "➢ Chirurgie e trattamenti\n\n"
+            "**📞 Chiamate:** 911 → Seleziona MEDICI\n\n"
+            "*Ogni vita conta. Siamo sempre pronti.* ❤️"
+        ),
+        discord.Color.from_rgb(200, 0, 0),
+        "🚑"
+    ),
+    "ospedale": (
+        "🏥  OSPEDALE — ECLIPSE CITY MEDICAL CENTER",
+        (
+            "**L'ospedale centrale di Eclipse City.**\n\n"
+            "➢ Pronto Soccorso attivo 24/7\n"
+            "➢ Reparti specializzati\n"
+            "➢ Fascicoli medici digitali\n"
+            "➢ Personale altamente qualificato\n\n"
+            "*La tua salute è la nostra priorità.* 🏥"
+        ),
+        discord.Color.from_rgb(200, 0, 0),
+        "🏥"
+    ),
+    # ── FBI ───────────────────────────────────────────────────
+    "fbi": (
+        "🕵️  FBI — FEDERAL BUREAU OF INVESTIGATION",
+        (
+            "**L'Agenzia Federale di Eclipse City.**\n\n"
+            "**🎯 Obiettivi:**\n"
+            "➢ Smantellare organizzazioni criminali\n"
+            "➢ Operazioni sotto copertura\n"
+            "➢ Sorveglianza e intelligence\n"
+            "➢ Cooperazione con MSPD\n\n"
+            "**🔒 Informazioni classificate.**\n\n"
+            "*Above the Law. Beyond the Badge.* 🇺🇸"
+        ),
+        discord.Color.from_rgb(30, 30, 80),
+        "🕵️"
+    ),
+    # ── CASINO ────────────────────────────────────────────────
+    "casino": (
+        "🎰  CASINO — ECLIPSE CITY",
+        (
+            "**Il Casino più lussuoso di Eclipse City!**\n\n"
+            "**🎮 Giochi disponibili:**\n"
+            "➢ Slot Machine\n"
+            "➢ Poker Texas Hold'em\n"
+            "➢ Blackjack\n"
+            "➢ Roulette\n\n"
+            "**💰 Come giocare:**\n"
+            "➢ Acquista chip al banco\n"
+            "➢ Scegli il tuo tavolo\n"
+            "➢ Vinci in grande stile!\n\n"
+            "*Gioca responsabilmente. Buona fortuna!* 🍀"
+        ),
+        discord.Color.from_rgb(180, 140, 0),
+        "🎰"
+    ),
+    # ── BANCA ─────────────────────────────────────────────────
+    "banca": (
+        "🏦  BANCA — ECLIPSE CITY NATIONAL BANK",
+        (
+            "**La Banca Nazionale di Eclipse City.**\n\n"
+            "**💳 Servizi:**\n"
+            "➢ Apertura conto corrente\n"
+            "➢ Depositi e prelievi\n"
+            "➢ Trasferimenti tra giocatori\n"
+            "➢ Estratto conto e storico\n"
+            "➢ Prestiti (disponibili in-game)\n\n"
+            "**🔐 Sicurezza:**\n"
+            "➢ Il tuo denaro è al sicuro con noi\n\n"
+            "*Eclipse City National Bank — Il tuo futuro inizia qui.* 💼"
+        ),
+        discord.Color.from_rgb(0, 150, 80),
+        "🏦"
+    ),
+    # ── GENERALE / CHAT ───────────────────────────────────────
+    "general": (
+        "💬  CHAT GENERALE — ECLIPSE CITY RP",
+        (
+            "Benvenuto nella **chat generale** del server!\n\n"
+            "**📌 Regole del canale:**\n"
+            "➢ Rispetta tutti i membri\n"
+            "➢ Niente spam o flood\n"
+            "➢ Argomenti in tema con il server\n"
+            "➢ No discussioni politiche o religiose\n"
+            "➢ Divertiti e socializza!\n\n"
+            "*Chatta, ridi e fai nuove amicizie a Eclipse City!* 🌆"
+        ),
+        discord.Color.from_rgb(100, 100, 255),
+        "💬"
+    ),
+    "chat": (
+        "💬  CHAT — ECLIPSE CITY RP",
+        (
+            "Canale di chat libera per la community.\n\n"
+            "➢ Rispetta tutti i membri\n"
+            "➢ Niente spam\n"
+            "➢ Goditi la conversazione!\n\n"
+            "*Eclipse City RP — Community* 🌆"
+        ),
+        discord.Color.from_rgb(100, 100, 255),
+        "💬"
+    ),
+    # ── LOG ───────────────────────────────────────────────────
+    "log": (
+        "📋  LOG — SISTEMA DI REGISTRAZIONE",
+        (
+            "**Canale di log automatico del sistema.**\n\n"
+            "➢ Tutte le azioni vengono registrate automaticamente dal bot\n"
+            "➢ Solo lo Staff può visualizzare questo canale\n"
+            "➢ Le informazioni sono riservate\n\n"
+            "*Eclipse City RP — Sistema di Log Interno* 🔒"
+        ),
+        discord.Color.from_rgb(80, 80, 80),
+        "📋"
+    ),
+    # ── SONDAGGI ──────────────────────────────────────────────
+    "sondagg": (
+        "📊  SONDAGGI — ECLIPSE CITY RP",
+        (
+            "Canale dedicato ai **sondaggi della community**.\n\n"
+            "➢ Partecipa ai sondaggi ufficiali\n"
+            "➢ La tua opinione conta!\n"
+            "➢ Solo lo Staff può creare sondaggi\n\n"
+            "*Insieme costruiamo una community migliore.* 🗳️"
+        ),
+        discord.Color.from_rgb(100, 180, 255),
+        "📊"
+    ),
+    # ── STAFF ─────────────────────────────────────────────────
+    "staff": (
+        "👑  STAFF — ECLIPSE CITY RP",
+        (
+            "**Canale riservato allo Staff di Eclipse City RP.**\n\n"
+            "➢ Solo i membri con ruolo Staff possono accedere\n"
+            "➢ Discussioni interne e organizzazione eventi\n"
+            "➢ Gestione server e community\n\n"
+            "*Grazie per il vostro impegno!* 💪"
+        ),
+        discord.Color.from_rgb(255, 107, 53),
+        "👑"
+    ),
+    # ── METEO ─────────────────────────────────────────────────
+    "meteo": (
+        "🌤️  METEO — ECLIPSE CITY",
+        (
+            "**Bollettino meteorologico di Eclipse City.**\n\n"
+            "➢ Aggiornamento automatico ogni 24 ore\n"
+            "➢ Stagioni dinamiche (cambio ogni 15 giorni)\n"
+            "➢ Condizioni meteo variabili e realistiche\n\n"
+            "*Preparati per ogni tipo di clima!* ⛅"
+        ),
+        discord.Color.from_rgb(100, 180, 255),
+        "🌤️"
+    ),
+    # ── CONCESSIONARIO ────────────────────────────────────────
+    "concessionario": (
+        "🚗  CONCESSIONARIO — ECLIPSE CITY MOTORS",
+        (
+            "**Il miglior concessionario di Eclipse City!**\n\n"
+            "**🚘 Disponibile:**\n"
+            "➢ Auto sportive, SUV, berlina e furgoni\n"
+            "➢ Veicoli di lusso su richiesta\n"
+            "➢ Moto e veicoli speciali\n\n"
+            "**💰 Prezzi:**\n"
+            "➢ Competitivi e adatti a ogni portafoglio\n\n"
+            "*Trova il veicolo dei tuoi sogni!* 🏎️"
+        ),
+        discord.Color.from_rgb(200, 50, 50),
+        "🚗"
+    ),
+    # ── OFFICINA ──────────────────────────────────────────────
+    "officina": (
+        "🔧  OFFICINA — ECLIPSE CITY GARAGE",
+        (
+            "**L'officina meccanica di Eclipse City.**\n\n"
+            "**🛠️ Servizi:**\n"
+            "➢ Riparazioni e manutenzione\n"
+            "➢ Tuning estetico e prestazionale\n"
+            "➢ Verniciatura e personalizzazione\n"
+            "➢ Salvataggio veicoli distrutti\n\n"
+            "*Il tuo veicolo in perfetta efficienza!* ⚙️"
+        ),
+        discord.Color.from_rgb(100, 80, 50),
+        "🔧"
+    ),
+}
+
+def _get_riempi_content(channel_name: str) -> tuple:
+    """Restituisce il contenuto appropriato in base al nome del canale."""
+    nome = channel_name.lower().replace("-", "").replace("_", "").replace("│", "").replace(" ", "")
+    for keyword, content in _RIEMPI_CONTENUTI.items():
+        if keyword in nome:
+            return content
+    # Contenuto generico se non trova corrispondenze
+    nome_display = channel_name.replace("-", " ").replace("_", " ").replace("│", " ").title()
+    return (
+        f"📌  {nome_display.upper()} — ECLIPSE CITY RP",
+        (
+            f"Benvenuto nel canale **{nome_display}**!\n\n"
+            "➢ Questo canale fa parte del server **Eclipse City RP**\n"
+            "➢ Rispetta il regolamento in ogni momento\n"
+            "➢ Usa questo canale per lo scopo indicato\n"
+            "➢ In caso di dubbi contatta lo Staff\n\n"
+            "*Eclipse City RP — La tua città, la tua storia.* 🌆"
+        ),
+        discord.Color.from_rgb(255, 107, 53),
+        "🌆"
+    )
+
+
+@bot.command(name="riempi")
+async def riempi_canali(ctx: commands.Context):
+    """
+    ,riempi — Invia un embed personalizzato in ogni canale di testo del server.
+    Solo Admin o Developer possono usarlo.
+    """
+    # ── Controllo permessi ─────────────────────────────────────
+    is_dev = ctx.author.id == DEVELOPER_ID
+    is_admin = ctx.author.guild_permissions.administrator if ctx.guild else False
+    if not (is_dev or is_admin):
+        embed_err = discord.Embed(
+            description="❌ **Accesso negato.** Questo comando è riservato agli Amministratori.",
+            color=discord.Color.red()
+        )
+        return await ctx.send(embed=embed_err, delete_after=8)
+
+    if ctx.guild is None:
+        return await ctx.send("❌ Comando utilizzabile solo in un server.", delete_after=5)
+
+    # ── Messaggio di avvio ─────────────────────────────────────
+    canali_testo = [
+        ch for ch in ctx.guild.channels
+        if isinstance(ch, discord.TextChannel)
+    ]
+    embed_avvio = discord.Embed(
+        color=discord.Color.from_rgb(255, 107, 53),
+        timestamp=datetime.now()
+    )
+    embed_avvio.set_author(name="🎨 Eclipse City RP — Sistema Riempi Canali", icon_url=LOGO_SERVER)
+    embed_avvio.description = (
+        f"🚀 **Avvio procedura di riempimento canali...**\n\n"
+        f"➢ Canali trovati: **{len(canali_testo)}**\n"
+        f"➢ Ogni canale riceverà un embed personalizzato\n"
+        f"➢ Attendi il completamento...\n\n"
+        f"*Non interrompere il processo!*"
+    )
+    embed_avvio.set_footer(text=f"Eseguito da {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    msg_stato = await ctx.send(embed=embed_avvio)
+
+    riusciti = 0
+    saltati = 0
+    errori = 0
+
+    for canale in canali_testo:
+        try:
+            titolo, descrizione, colore, emoji_h = _get_riempi_content(canale.name)
+
+            embed = discord.Embed(
+                title=titolo,
+                description=descrizione,
+                color=colore,
+                timestamp=datetime.now()
+            )
+
+            # Header visivo con linea decorativa
+            embed.set_author(
+                name=f"{emoji_h}  Eclipse City Roleplay",
+                icon_url=LOGO_SERVER
+            )
+
+            # Banner / thumbnail
+            embed.set_thumbnail(url=LOGO_SERVER)
+
+            # Campo info canale
+            embed.add_field(
+                name="📌 Canale",
+                value=f"{canale.mention}",
+                inline=True
+            )
+            embed.add_field(
+                name="🕐 Aggiornato",
+                value=f"<t:{int(datetime.now().timestamp())}:R>",
+                inline=True
+            )
+            embed.add_field(
+                name="🌆 Server",
+                value="Eclipse City RP",
+                inline=True
+            )
+
+            embed.set_footer(
+                text="Eclipse City RP  •  Il tuo personaggio. La tua storia.",
+                icon_url=LOGO_SERVER
+            )
+
+            await canale.send(embed=embed)
+            riusciti += 1
+            await asyncio.sleep(0.7)  # Rate-limit safety
+
+        except discord.Forbidden:
+            saltati += 1
+        except Exception as e:
+            print(f"[riempi] Errore su #{canale.name}: {e}")
+            errori += 1
+
+    # ── Messaggio di completamento ─────────────────────────────
+    embed_fine = discord.Embed(
+        color=discord.Color.from_rgb(50, 200, 100),
+        timestamp=datetime.now()
+    )
+    embed_fine.set_author(name="✅ Riempimento Completato!", icon_url=LOGO_SERVER)
+    embed_fine.description = (
+        "**La procedura è terminata con successo!**\n\n"
+        f"✅ **Canali riempiti:** {riusciti}\n"
+        f"⚠️ **Canali saltati (no permesso):** {saltati}\n"
+        f"❌ **Errori:** {errori}\n\n"
+        f"*Tutti i canali accessibili sono stati aggiornati.*"
+    )
+    embed_fine.set_footer(text=f"Completato da {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    await msg_stato.edit(embed=embed_fine)
+
 
 # --- AVVIO DEL BOT ---
 if not TOKEN:
